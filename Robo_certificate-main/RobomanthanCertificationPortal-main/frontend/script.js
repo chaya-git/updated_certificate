@@ -5,7 +5,7 @@ const API_BASE_URL =
   window.location.hostname === "localhost" ||
   window.location.hostname === "127.0.0.1"
     ? "http://localhost:5000"
-   : "https://updated-certificate.onrender.com"; // <-- change this after deploying the backend
+   : "https://robo-certificate.onrender.com"; // <-- change this after deploying the backend
 
 if (window.location.pathname.includes("admin.html")) {
   if (localStorage.getItem("adminAccess") !== "true") {
@@ -51,25 +51,50 @@ async function verifyCertificate() {
       return;
     }
 
-    const pdfUrl = `${API_BASE_URL}/${data.file_url.replace(/\\/g, "/")}`;
+    const pdfUrl = data.file_url
+      ? `${API_BASE_URL}/${data.file_url.replace(/\\/g, "/")}`
+      : null;
+
+    // /certificate/:id (which the QR code hits) returns every column on
+    // the row — not just the ID — so show all of it here instead of just
+    // the bare certificate ID + a broken "uploaded_at" field.
+    const formatDate = (value) => {
+      if (!value) return "—";
+      const d = new Date(value);
+      return isNaN(d) ? value : d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+    };
+
+    const certTypeLabels = {
+      internship: "Internship",
+      course: "Course Completion",
+      hackathon: "Hackathon Participation",
+      fulltime: "Full-time Experience",
+    };
+
+    const isFulltime = data.certificate_type === "fulltime";
 
     result.innerHTML = `
       <div class="success">
 
         <h2>✅ Certificate Verified</h2>
 
-        <p>
-          Certificate ID:
-          <strong>${data.certificate_id}</strong>
-        </p>
+        <div class="verify-details">
+          <p><span>Recipient Name</span><strong>${data.recipient_name || "—"}</strong></p>
+          <p><span>Certificate ID</span><strong>${data.certificate_id}</strong></p>
+          <p><span>Certificate Type</span><strong>${certTypeLabels[data.certificate_type] || data.certificate_type || "—"}</strong></p>
+          <p><span>${isFulltime ? "Designation" : "College / Organization"}</span><strong>${data.college_name || "—"}</strong></p>
+          <p><span>${isFulltime ? "Employee ID" : "Program"}</span><strong>${data.program_name || "—"}</strong></p>
+          <p><span>Role</span><strong>${data.role || "—"}</strong></p>
+          ${!isFulltime ? `<p><span>Department</span><strong>${data.department || "—"}</strong></p>` : ""}
+          <p><span>Duration</span><strong>${formatDate(data.start_date)} &nbsp;–&nbsp; ${formatDate(data.end_date)}</strong></p>
+          <p><span>Issue Date</span><strong>${formatDate(data.issue_date)}</strong></p>
+        </div>
 
-        <p>
-          Uploaded At:
-          ${new Date(data.uploaded_at).toLocaleString()}
-        </p>
-
+        ${
+          pdfUrl
+            ? `
         <a href="${pdfUrl}" target="_blank">
-          Open Certificate PDF
+          <button type="button">⬇️ Open / Download Certificate PDF</button>
         </a>
 
         <br><br>
@@ -79,6 +104,9 @@ async function verifyCertificate() {
           width="100%"
           height="700">
         </iframe>
+        `
+            : `<p style="color:#b45309">No certificate file is attached to this record yet.</p>`
+        }
 
       </div>
     `;
