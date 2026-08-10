@@ -204,6 +204,42 @@ input:focus {
   border-left: 6px solid green;
 }
 
+/* ---------- VERIFY DETAILS ---------- */
+
+.verify-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 24px;
+  margin: 16px 0 20px;
+}
+
+.verify-details p {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.verify-details p span {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #4b5563;
+  margin-bottom: 2px;
+}
+
+.verify-details p strong {
+  font-size: 1rem;
+  color: #14532d;
+}
+
+.dark .verify-details p span {
+  color: #cbd5e1;
+}
+
+.dark .verify-details p strong {
+  color: #bbf7d0;
+}
+
 /* ---------- ERROR ---------- */
 
 .error {
