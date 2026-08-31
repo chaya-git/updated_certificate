@@ -1,0 +1,6 @@
+node_modules/
+.env
+backend/generated-certificates/*
+backend/uploads/*
+!backend/generated-certificates/.gitkeep
+!backend/uploads/.gitkeep
