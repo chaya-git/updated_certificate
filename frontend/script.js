@@ -1,11 +1,10 @@
 // Single place to configure the backend URL.
-// Locally it auto-detects localhost; once deployed, replace the
-// production value below with your real backend URL (e.g. Render).
-const API_BASE_URL ='https://updated-certificate-1.onrender.com';
+// Locally it auto-detects localhost; production points at the deployed backend.
+const API_BASE_URL =
   window.location.hostname === "localhost" ||
   window.location.hostname === "127.0.0.1"
     ? "http://localhost:5000"
-   : "https://robo-certificate.onrender.com"; // <-- change this after deploying the backend
+    : "https://updated-certificate-1.onrender.com";
 
 if (window.location.pathname.includes("admin.html")) {
   if (localStorage.getItem("adminAccess") !== "true") {
