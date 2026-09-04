@@ -1,7 +1,7 @@
 // Single place to configure the backend URL.
 // Locally it auto-detects localhost; once deployed, replace the
 // production value below with your real backend URL (e.g. Render).
-const API_BASE_URL =
+const API_BASE_URL ='https://updated-certificate-1.onrender.com';
   window.location.hostname === "localhost" ||
   window.location.hostname === "127.0.0.1"
     ? "http://localhost:5000"
