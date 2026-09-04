@@ -6,6 +6,13 @@ require("dotenv").config();
 const multer = require("multer");
 const QRCode = require("qrcode");
 const archiver = require("archiver");
+const fs = require("fs");
+const path = require("path");
+
+const uploadsDir = path.join(__dirname, "uploads");
+const certsDir = path.join(__dirname, "generated-certificates");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+if (!fs.existsSync(certsDir)) fs.mkdirSync(certsDir, { recursive: true });
 
 // This is what gets baked into every certificate's QR code, so it MUST be
 // a URL your phone (on any network) can actually reach — not localhost.
@@ -76,10 +83,8 @@ pool.query = async (text, params) => {
 app.use(express.json());
 app.use(cors());
 
-const fs = require("fs");
 const { PDFDocument, rgb, StandardFonts } = require("pdf-lib");
 const fontkit = require("@pdf-lib/fontkit");
-const path = require("path");
 
 // ---------------------------------------------------------------------------
 // Dynamic text-layout helpers
@@ -504,6 +509,16 @@ async function buildCertificatePdf(fields, logoFile) {
     )
     VALUES
     ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    ON CONFLICT (certificate_id) DO UPDATE SET
+      recipient_name = EXCLUDED.recipient_name,
+      college_name = EXCLUDED.college_name,
+      program_name = EXCLUDED.program_name,
+      role = EXCLUDED.role,
+      department = EXCLUDED.department,
+      start_date = EXCLUDED.start_date,
+      end_date = EXCLUDED.end_date,
+      issue_date = EXCLUDED.issue_date,
+      certificate_type = EXCLUDED.certificate_type
     `,
         [
           certificateId,
@@ -567,6 +582,10 @@ async function buildCertificatePdf(fields, logoFile) {
         if (totalSigns === 2) templateFile = "2exp.png";
         else if (totalSigns === 3) templateFile = "exp3.png";
         else templateFile = "exp4.png";
+      }
+
+      if (!templateFile || !fs.existsSync(path.join(__dirname, "templates", templateFile))) {
+        templateFile = "experience_certificate.png";
       }
 
       let secondSignLines = [];
