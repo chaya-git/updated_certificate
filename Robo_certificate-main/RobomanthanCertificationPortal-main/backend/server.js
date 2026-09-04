@@ -7,15 +7,11 @@ const multer = require("multer");
 const QRCode = require("qrcode");
 const archiver = require("archiver");
 
-// This is what gets baked into every certificate's QR code.
+// This is what gets baked into every certificate's QR code, so it MUST be
+// a URL your phone (on any network) can actually reach — not localhost.
 // Set FRONTEND_URL in your .env to wherever verify.html is really hosted.
-// - Testing on this same machine only: http://localhost:5500 (or whatever
-//   port your frontend runs on)
-// - Scanning the QR with your phone: use your computer's LAN IP instead of
-//   "localhost", e.g. http://192.168.1.X:5500, since a phone can't resolve
-//   "localhost" as your PC.
-// Falls back to localhost:5500 for local dev if the env var isn't set.
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5500";
+// Falls back to your live Vercel frontend if the env var isn't set.
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://updated-certificate.vercel.app";
 app.use("/uploads", express.static("uploads"));
 app.use("/generated-certificates", express.static("generated-certificates"));
 
@@ -751,7 +747,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (authorizedSignImage) {
             page.drawImage(authorizedSignImage, {
               x: 275,
-              y: 90,
+              y: 100,
               width: 90,
               height: 40,
             });
@@ -773,7 +769,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (secondSignImage) {
             page.drawImage(secondSignImage, {
               x: 465,
-              y: 90,
+              y: 100,
               width: 90,
               height: 40,
             });
@@ -892,7 +888,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (authorizedSignImage) {
             page.drawImage(authorizedSignImage, {
               x: 275,
-              y: 90,
+              y: 100,
               width: 90,
               height: 40,
             });
@@ -914,7 +910,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (secondSignImage) {
             page.drawImage(secondSignImage, {
               x: 465,
-              y: 90,
+              y: 100,
               width: 90,
               height: 40,
             });
@@ -1032,7 +1028,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (authorizedSignImage) {
             page.drawImage(authorizedSignImage, {
               x: 275,
-              y: 110,
+              y: 120,
               width: 90,
               height: 40,
             });
@@ -1054,7 +1050,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (secondSignImage) {
             page.drawImage(secondSignImage, {
               x: 465,
-              y: 110,
+              y: 120,
               width: 90,
               height: 40,
             });
@@ -1193,7 +1189,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (authorizedSignImage) {
             page.drawImage(authorizedSignImage, {
               x: 275,
-              y: 110,
+              y: 120,
               width: 90,
               height: 40,
             });
@@ -1215,7 +1211,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (secondSignImage) {
             page.drawImage(secondSignImage, {
               x: 465,
-              y: 110,
+              y: 120,
               width: 90,
               height: 40,
             });
@@ -1333,7 +1329,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (authorizedSignImage) {
             page.drawImage(authorizedSignImage, {
               x: 275,
-              y: 110,
+              y: 120,
               width: 90,
               height: 40,
             });
@@ -1355,7 +1351,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (secondSignImage) {
             page.drawImage(secondSignImage, {
               x: 465,
-              y: 110,
+              y: 120,
               width: 90,
               height: 40,
             });
@@ -1493,7 +1489,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (authorizedSignImage) {
             page.drawImage(authorizedSignImage, {
               x: 275,
-              y: 110,
+              y: 120,
               width: 90,
               height: 40,
             });
@@ -1515,7 +1511,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (secondSignImage) {
             page.drawImage(secondSignImage, {
               x: 465,
-              y: 110,
+              y: 120,
               width: 90,
               height: 40,
             });
@@ -1633,7 +1629,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (authorizedSignImage) {
             page.drawImage(authorizedSignImage, {
               x: 275,
-              y: 110,
+              y: 120,
               width: 90,
               height: 40,
             });
@@ -1655,7 +1651,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (secondSignImage) {
             page.drawImage(secondSignImage, {
               x: 465,
-              y: 110,
+              y: 120,
               width: 90,
               height: 40,
             });
@@ -1793,7 +1789,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (authorizedSignImage) {
             page.drawImage(authorizedSignImage, {
               x: 275,
-              y: 110,
+              y: 120,
               width: 90,
               height: 40,
             });
@@ -1815,7 +1811,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (secondSignImage) {
             page.drawImage(secondSignImage, {
               x: 465,
-              y: 110,
+              y: 120,
               width: 90,
               height: 40,
             });
@@ -1914,7 +1910,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (authorizedSignImage) {
             page.drawImage(authorizedSignImage, {
               x: 275,
-              y: 110,
+              y: 120,
               width: 90,
               height: 40,
             });
@@ -1936,7 +1932,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (secondSignImage) {
             page.drawImage(secondSignImage, {
               x: 465,
-              y: 110,
+              y: 120,
               width: 90,
               height: 40,
             });
@@ -2057,7 +2053,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (authorizedSignImage) {
             page.drawImage(authorizedSignImage, {
               x: 275,
-              y: 110,
+              y: 120,
               width: 90,
               height: 40,
             });
@@ -2079,7 +2075,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (secondSignImage) {
             page.drawImage(secondSignImage, {
               x: 465,
-              y: 110,
+              y: 120,
               width: 90,
               height: 40,
             });
