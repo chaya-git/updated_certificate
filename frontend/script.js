@@ -636,55 +636,92 @@ function parseStudentsList(raw) {
 
 async function generateBundleCertificates() {
   const resultDiv = document.getElementById("bundleResult");
+  const btn = document.getElementById("bundleGenerateBtn");
+
+  const setFeedback = (html) => {
+    if (resultDiv) resultDiv.innerHTML = html;
+  };
+
+  const resetButton = () => {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = "Generate & Download Bundle";
+    }
+  };
 
   try {
-    const studentsRaw = document.getElementById("studentsList").value;
+    if (btn) {
+      btn.disabled = true;
+      btn.innerText = "⏳ Generating certificates... Please wait...";
+    }
+
+    setFeedback(`
+      <div style="padding:12px; background:#e3f2fd; border:1px solid #90caf9; color:#0d47a1; border-radius:6px; margin-top:14px; font-size:15px;">
+        ⏳ <strong>Processing...</strong> Checking input and preparing certificates...
+      </div>
+    `);
+
+    const studentsRaw = (document.getElementById("studentsList")?.value || "").trim();
     const students = parseStudentsList(studentsRaw);
 
     if (students.length === 0) {
-      alert("Please enter at least one student (Name, RM ID) — one per line.");
+      setFeedback(`
+        <div style="padding:12px; background:#ffebee; border:1px solid #ef9a9a; color:#c62828; border-radius:6px; margin-top:14px; font-size:14px;">
+          ⚠️ <strong>No students entered:</strong> Please enter at least one student in the text area (e.g. <code>Asha Rao, RM25201</code>) — one per line.
+        </div>
+      `);
+      resetButton();
       return;
     }
 
     const invalid = students.find((s) => !s.recipientName || !s.certificateId);
     if (invalid) {
-      alert(
-        `Every line needs both a name and an RM ID, separated by a comma.\nProblem line: "${invalid.recipientName}, ${invalid.certificateId}"`,
-      );
+      setFeedback(`
+        <div style="padding:12px; background:#ffebee; border:1px solid #ef9a9a; color:#c62828; border-radius:6px; margin-top:14px; font-size:14px;">
+          ⚠️ <strong>Format error:</strong> Every line must have both a name and an RM ID separated by a comma.<br/>Problem line: <code>"${invalid.recipientName || ""}, ${invalid.certificateId || ""}"</code>
+        </div>
+      `);
+      resetButton();
       return;
     }
 
+    setFeedback(`
+      <div style="padding:14px; background:#e3f2fd; border:1px solid #90caf9; color:#0d47a1; border-radius:6px; margin-top:14px; font-size:15px; line-height:1.5;">
+        ⏳ <strong>Generating ${students.length} certificate(s)...</strong><br/>
+        Building dynamic PDFs with QR codes and packaging into ZIP. This takes a few seconds, please wait!
+      </div>
+    `);
+
+    const val = (id) => (document.getElementById(id) ? document.getElementById(id).value : "");
     const formData = new FormData();
 
-    formData.append("collegeName", document.getElementById("collegeNameBundle").value);
-    formData.append("programName", document.getElementById("programNameBundle").value);
-    formData.append("role", document.getElementById("roleBundle").value);
-    formData.append("department", document.getElementById("departmentBundle").value);
-    formData.append("startDate", document.getElementById("startDateBundle").value);
-    formData.append("endDate", document.getElementById("endDateBundle").value);
-    formData.append("issueDate", document.getElementById("issueDateBundle").value);
-    formData.append("certificateType", document.getElementById("certificateTypeBundle").value);
-    formData.append("customDescription", document.getElementById("customDescriptionBundle").value);
-    formData.append("useCustomDescription", document.getElementById("useCustomDescriptionBundle").value);
-    formData.append("includeAuthorizedSign", document.getElementById("includeAuthorizedSignBundle").value);
-    formData.append("secondSignatory", document.getElementById("secondSignatoryBundle").value);
-    formData.append("includeSecondSign", document.getElementById("includeSecondSignBundle").value);
-    formData.append("otherSignatoryName", document.getElementById("otherSignatoryNameBundle").value);
-    formData.append("otherSignatoryDesignation", document.getElementById("otherSignatoryDesignationBundle").value);
-    formData.append("includeThirdSign", document.getElementById("includeThirdSignBundle").value);
-    formData.append("thirdSignatoryName", document.getElementById("thirdSignatoryNameBundle").value);
-    formData.append("thirdSignatoryDesignation", document.getElementById("thirdSignatoryDesignationBundle").value);
-    formData.append("includeFourthSign", document.getElementById("includeFourthSignBundle").value);
-    formData.append("fourthSignatoryName", document.getElementById("fourthSignatoryNameBundle").value);
-    formData.append("fourthSignatoryDesignation", document.getElementById("fourthSignatoryDesignationBundle").value);
+    formData.append("collegeName", val("collegeNameBundle"));
+    formData.append("programName", val("programNameBundle"));
+    formData.append("role", val("roleBundle"));
+    formData.append("department", val("departmentBundle"));
+    formData.append("startDate", val("startDateBundle"));
+    formData.append("endDate", val("endDateBundle"));
+    formData.append("issueDate", val("issueDateBundle"));
+    formData.append("certificateType", val("certificateTypeBundle") || "internship");
+    formData.append("customDescription", val("customDescriptionBundle"));
+    formData.append("useCustomDescription", val("useCustomDescriptionBundle") || "no");
+    formData.append("includeAuthorizedSign", val("includeAuthorizedSignBundle") || "no");
+    formData.append("secondSignatory", val("secondSignatoryBundle") || "CMO");
+    formData.append("includeSecondSign", val("includeSecondSignBundle") || "yes");
+    formData.append("otherSignatoryName", val("otherSignatoryNameBundle"));
+    formData.append("otherSignatoryDesignation", val("otherSignatoryDesignationBundle"));
+    formData.append("includeThirdSign", val("includeThirdSignBundle") || "no");
+    formData.append("thirdSignatoryName", val("thirdSignatoryNameBundle"));
+    formData.append("thirdSignatoryDesignation", val("thirdSignatoryDesignationBundle"));
+    formData.append("includeFourthSign", val("includeFourthSignBundle") || "no");
+    formData.append("fourthSignatoryName", val("fourthSignatoryNameBundle"));
+    formData.append("fourthSignatoryDesignation", val("fourthSignatoryDesignationBundle"));
     formData.append("students", JSON.stringify(students));
 
-    const logoFile = document.getElementById("organizationLogoBundle").files[0];
-    if (logoFile) {
-      formData.append("organizationLogo", logoFile);
+    const logoInput = document.getElementById("organizationLogoBundle");
+    if (logoInput && logoInput.files && logoInput.files[0]) {
+      formData.append("organizationLogo", logoInput.files[0]);
     }
-
-    resultDiv.innerHTML = `<p style="color:#007bff">⏳ Generating ${students.length} certificate(s)… Please wait, preparing download...</p>`;
 
     const response = await fetch(`${API_BASE_URL}/generateBulkCertificates`, {
       method: "POST",
@@ -692,12 +729,17 @@ async function generateBundleCertificates() {
     });
 
     if (!response.ok) {
-      let message = "Failed to generate the bundle.";
+      let message = "Failed to generate the certificate bundle.";
       try {
         const err = await response.json();
         message = err.message || message;
       } catch (e) {}
-      resultDiv.innerHTML = `<p style="color:red">❌ ${message}</p>`;
+      setFeedback(`
+        <div style="padding:12px; background:#ffebee; border:1px solid #ef9a9a; color:#c62828; border-radius:6px; margin-top:14px; font-size:14px;">
+          ❌ <strong>Generation Failed:</strong> ${message}
+        </div>
+      `);
+      resetButton();
       return;
     }
 
@@ -711,10 +753,20 @@ async function generateBundleCertificates() {
     a.remove();
     window.URL.revokeObjectURL(url);
 
-    resultDiv.innerHTML = `<p style="color:green">✅ Successfully generated and downloaded ${students.length} certificate(s) in a ZIP file!</p>`;
+    setFeedback(`
+      <div style="padding:14px; background:#e8f5e9; border:1px solid #a5d6a7; color:#1b5e20; border-radius:6px; margin-top:14px; font-size:15px;">
+        ✅ <strong>Success!</strong> Successfully generated and downloaded <strong>${students.length} certificate(s)</strong> as a ZIP file.
+      </div>
+    `);
+    resetButton();
   } catch (err) {
     console.error(err);
-    resultDiv.innerHTML = `<p style="color:red">❌ Error generating bundle: ${err.message}</p>`;
+    setFeedback(`
+      <div style="padding:12px; background:#ffebee; border:1px solid #ef9a9a; color:#c62828; border-radius:6px; margin-top:14px; font-size:14px;">
+        ❌ <strong>Error:</strong> ${err.message}
+      </div>
+    `);
+    resetButton();
   }
 }
 
