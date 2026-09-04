@@ -124,11 +124,15 @@ function showSection() {
   const value = document.getElementById("useType").value;
 
   document.getElementById("addSection").style.display = "none";
+  document.getElementById("bundleSection").style.display = "none";
   document.getElementById("editSection").style.display = "none";
   document.getElementById("deleteSection").style.display = "none";
 
   if (value === "add")
     document.getElementById("addSection").style.display = "block";
+
+  if (value === "bundle")
+    document.getElementById("bundleSection").style.display = "block";
 
   if (value === "edit")
     document.getElementById("editSection").style.display = "block";
@@ -136,7 +140,6 @@ function showSection() {
   if (value === "delete")
     document.getElementById("deleteSection").style.display = "block";
 }
-
 // async function addCertificate() {
 //   const certificateId = document.getElementById("certificateId").value;
 
