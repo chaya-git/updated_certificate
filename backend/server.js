@@ -396,7 +396,11 @@ app.delete("/certificate/:id", async (req, res) => {
     });
   }
 });
-const PORT = 5000;
+
+// Render assigns its own port at runtime via process.env.PORT — hardcoding
+// 5000 here would prevent the deployed service from ever receiving traffic.
+// The fallback to 5000 keeps local development working exactly as before.
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
