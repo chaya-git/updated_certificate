@@ -8,6 +8,7 @@ const QRCode = require("qrcode");
 const archiver = require("archiver");
 const fs = require("fs");
 const path = require("path");
+const sharp = require("sharp");
 
 const uploadsDir = path.join(__dirname, "uploads");
 const certsDir = path.join(__dirname, "generated-certificates");
@@ -431,19 +432,60 @@ const signMap = {
   },
 };
 
-const LOGO = {
-  x: 700,
-  y: 470,
-  width: 90,
-  height: 90,
-};
+// Top-right box, between the company title and the page frame.
+const LOGO_AREA = { x: 676, y: 452, width: 118, height: 108, gap: 8 };
+
+// Stacks all logos in ONE column, one below the other (first logo on top).
+// Each logo keeps its aspect ratio and is centered in its own slot.
+function layoutLogos(images, area = LOGO_AREA) {
+  const n = images.length;
+  if (n === 0) return [];
+
+  const slotH = (area.height - area.gap * (n - 1)) / n;
+
+  return images.map((img, i) => {
+    const scale = Math.min(area.width / img.width, slotH / img.height);
+    const w = img.width * scale;
+    const h = img.height * scale;
+
+    const slotTop = area.y + area.height - i * (slotH + area.gap);
+
+    return {
+      img,
+      x: area.x + (area.width - w) / 2,
+      y: slotTop - slotH + (slotH - h) / 2,
+      width: w,
+      height: h,
+    };
+  });
+}
+
+// Embeds any common image format. PNG/JPEG go straight in; everything else
+// (webp, gif, svg, bmp, tiff, avif, ...) is converted to PNG first.
+async function embedLogoImage(pdfDoc, logoBytes) {
+  const isPng =
+    logoBytes[0] === 0x89 && logoBytes[1] === 0x50 &&
+    logoBytes[2] === 0x4e && logoBytes[3] === 0x47;
+  const isJpg =
+    logoBytes[0] === 0xff && logoBytes[1] === 0xd8 && logoBytes[2] === 0xff;
+
+  if (isPng) return pdfDoc.embedPng(logoBytes);
+  if (isJpg) return pdfDoc.embedJpg(logoBytes);
+
+  try {
+    const pngBytes = await sharp(logoBytes, { density: 300 }).png().toBuffer();
+    return await pdfDoc.embedPng(pngBytes);
+  } catch (err) {
+    throw new Error("Unsupported logo file. Please upload an image file.");
+  }
+}
 
 // Builds a single certificate PDF and persists it (DB row + file on disk).
 // `fields` is the same shape as req.body for /generateCertificate.
-// `logoFile` is the same shape as req.file (multer) — pass null if none.
+// `logoFiles` is an array of multer file objects — pass [] if none.
 // Returns { pdfBytes, pdfFileName, certificateId } instead of sending a response,
 // so it can be reused by both the single-certificate route and the bulk route.
-async function buildCertificatePdf(fields, logoFile) {
+async function buildCertificatePdf(fields, logoFiles) {
       const {
         certificateId,
         recipientName,
@@ -542,16 +584,15 @@ async function buildCertificatePdf(fields, logoFile) {
       // font the rest of the template already used).
       const { nameFont, bodyFont } = await loadCertificateFonts(pdfDoc);
 
-      let organizationLogoImage = null;
+      let organizationLogoImages = [];
 
-      if (logoFile) {
+      // Ensure logoFiles is always an array
+      const logos = Array.isArray(logoFiles) ? logoFiles : (logoFiles ? [logoFiles] : []);
+
+      for (const logoFile of logos) {
         const logoBytes = fs.readFileSync(logoFile.path);
-
-        if (logoFile.mimetype === "image/png") {
-          organizationLogoImage = await pdfDoc.embedPng(logoBytes);
-        } else {
-          organizationLogoImage = await pdfDoc.embedJpg(logoBytes);
-        }
+        const img = await embedLogoImage(pdfDoc, logoBytes);
+        organizationLogoImages.push(img);
       }
 
       // `font` keeps its original name so every existing call site below
@@ -612,13 +653,15 @@ async function buildCertificatePdf(fields, logoFile) {
 
       
 
-      if (organizationLogoImage) {
-        
-
-        page.drawImage(organizationLogoImage, LOGO);
+      for (const p of layoutLogos(organizationLogoImages)) {
+        page.drawImage(p.img, {
+          x: p.x,
+          y: p.y,
+          width: p.width,
+          height: p.height,
+        });
       }
 
-      
       const verifyUrl = `${FRONTEND_URL}/verify.html?id=${certificateId}`;
 
       const qrImageBytes = await QRCode.toBuffer(verifyUrl);
@@ -939,7 +982,7 @@ async function buildCertificatePdf(fields, logoFile) {
             y: 300,
             centerX,
             prefix: "has successfully completed the ",
-            suffix: " at Robomanthan.",
+            suffix: ".",
             maxValueWidth: 220,
             baseSize: 16,
           });
@@ -1100,7 +1143,7 @@ async function buildCertificatePdf(fields, logoFile) {
             y: 300,
             centerX,
             prefix: "has successfully completed the ",
-            suffix: " at Robomanthan.",
+            suffix: ".",
             maxValueWidth: 220,
             baseSize: 16,
           });
@@ -1119,6 +1162,15 @@ async function buildCertificatePdf(fields, logoFile) {
             color: rgb(1, 1, 1),
           });
 
+          // Cover the "Trainer :" row that is baked into the template image
+          page.drawRectangle({
+            x: 68,
+            y: 94,
+            width: 112,
+            height: 21,
+            color: rgb(252 / 255, 251 / 255, 247 / 255),
+          });
+
           page.drawText(certificateId, {
             x: 180,
             y: 175,
@@ -1134,12 +1186,6 @@ async function buildCertificatePdf(fields, logoFile) {
           page.drawText(department, {
             x: 180,
             y: 124,
-            size: 12,
-          });
-
-          page.drawText(role, {
-            x: 180,
-            y: 99,
             size: 12,
           });
 
@@ -1240,7 +1286,7 @@ async function buildCertificatePdf(fields, logoFile) {
             y: 300,
             centerX,
             prefix: "has successfully participated in ",
-            suffix: " at Robomanthan.",
+            suffix: ".",
             maxValueWidth: 220,
             baseSize: 16,
           });
@@ -1400,7 +1446,7 @@ async function buildCertificatePdf(fields, logoFile) {
             y: 300,
             centerX,
             prefix: "has successfully participated in ",
-            suffix: " at Robomanthan.",
+            suffix: ".",
             maxValueWidth: 220,
             baseSize: 16,
           });
@@ -1805,10 +1851,10 @@ async function buildCertificatePdf(fields, logoFile) {
 // around buildCertificatePdf().
 app.post(
   "/generateCertificate",
-  upload.single("organizationLogo"),
+  upload.array("organizationLogos", 10),
   async (req, res) => {
     try {
-      const result = await buildCertificatePdf(req.body, req.file);
+      const result = await buildCertificatePdf(req.body, req.files || []);
 
       res.json({
         success: true,
@@ -1834,7 +1880,7 @@ app.post(
 // shared across every certificate in the batch. Streams back a .zip.
 app.post(
   "/generateBulkCertificates",
-  upload.single("organizationLogo"),
+  upload.array("organizationLogos", 10),
   async (req, res) => {
     let students;
 
@@ -1894,7 +1940,7 @@ app.post(
             recipientName,
           };
 
-          const result = await buildCertificatePdf(fields, req.file);
+          const result = await buildCertificatePdf(fields, req.files || []);
 
           archive.append(Buffer.from(result.pdfBytes), {
             name: `${result.certificateId}.pdf`,
