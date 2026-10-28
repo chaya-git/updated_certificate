@@ -1001,6 +1001,7 @@ async function buildCertificatePdf(fields, logoFiles) {
             color: rgb(1, 1, 1),
           });
 
+          page.drawRectangle({ x: 18, y: 172, width: 142, height: 27, color: rgb(251 / 255, 250 / 255, 246 / 255) });
           page.drawText(certificateId, {
             x: 160,
             y: 267,
@@ -1019,12 +1020,7 @@ async function buildCertificatePdf(fields, logoFiles) {
             size: 12,
           });
 
-          page.drawText(role, {
-            x: 160,
-            y: 175,
-            size: 12,
-          });
-
+          
           page.drawImage(qrImage, {
             x: 700,
             y: 320,

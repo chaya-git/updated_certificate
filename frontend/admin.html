@@ -148,8 +148,8 @@
           <input id="fourthSignatoryDesignation" />
         </div>
 
-        <label>Organization Logo (Optional)</label>
-        <input type="file" id="organizationLogo" accept=".png,.jpg,.jpeg" />
+        <label>Organization Logos (Optional - select multiple, first one is shown on top)</label>
+        <input type="file" id="organizationLogo" accept="image/*" multiple />
       </div>
       <br />
       <button onclick="generateCertificate()">Generate Certificate</button>
@@ -273,8 +273,8 @@
           <input id="fourthSignatoryDesignationBundle" />
         </div>
 
-        <label>Organization Logo (Optional)</label>
-        <input type="file" id="organizationLogoBundle" accept=".png,.jpg,.jpeg" />
+        <label>Organization Logos (Optional - select multiple, first one is shown on top)</label>
+        <input type="file" id="organizationLogoBundle" accept="image/*" multiple />
       </div>
 
       <br />
@@ -317,6 +317,6 @@
 
       <button onclick="deleteCertificate()">Delete Certificate</button>
     </div>
-    <script src="script.js?v=2.0"></script>
+    <script src="script.js?v=3.0"></script>
   </body>
 </html>

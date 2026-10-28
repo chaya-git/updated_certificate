@@ -383,7 +383,7 @@ async function generateCertificate() {
       "fourthSignatoryDesignation",
     ).value;
 
-    const logoFile = document.getElementById("organizationLogo").files[0];
+    const logoFiles = document.getElementById("organizationLogo").files;
 
     const formData = new FormData();
 
@@ -411,8 +411,8 @@ async function generateCertificate() {
     formData.append("fourthSignatoryName", fourthSignatoryName);
     formData.append("fourthSignatoryDesignation", fourthSignatoryDesignation);
 
-    if (logoFile) {
-      formData.append("organizationLogo", logoFile);
+    for (const file of logoFiles) {
+      formData.append("organizationLogos", file);
     }
 
     const response = await fetch(`${API_BASE_URL}/generateCertificate`, {
@@ -467,7 +467,7 @@ function changeCertificateType() {
 
   const collegeName = document.getElementById("collegeName");
   const programName = document.getElementById("programName");
-  const role = document.getElementById("role");
+  const role = document.getElementById("role"); role.style.display = type === "course" ? "none" : "block"; if (type === "course") role.value = "";
   const department = document.getElementById("department");
 
   if (type === "internship") {
@@ -549,7 +549,7 @@ function changeCertificateTypeBundle() {
 
   const collegeName = document.getElementById("collegeNameBundle");
   const programName = document.getElementById("programNameBundle");
-  const role = document.getElementById("roleBundle");
+  const role = document.getElementById("roleBundle"); role.style.display = type === "course" ? "none" : "block"; if (type === "course") role.value = "";
   const department = document.getElementById("departmentBundle");
 
   if (type === "internship") {
@@ -719,8 +719,8 @@ async function generateBundleCertificates() {
     formData.append("students", JSON.stringify(students));
 
     const logoInput = document.getElementById("organizationLogoBundle");
-    if (logoInput && logoInput.files && logoInput.files[0]) {
-      formData.append("organizationLogo", logoInput.files[0]);
+    if (logoInput && logoInput.files) for (const file of logoInput.files) {
+      formData.append("organizationLogos", file);
     }
 
     const response = await fetch(`${API_BASE_URL}/generateBulkCertificates`, {
