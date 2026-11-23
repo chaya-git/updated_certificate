@@ -198,6 +198,32 @@ input:focus {
     max-width: 120px;
     height: auto;
     margin-right: 10px;
+    margin-left: auto; /* push to right */
+}
+
+/* Position any extra logos on the left within certificate view */
+.certificate .logo-left {
+    float: left;
+    max-width: 45%;
+    height: auto;
+    margin-right: 10px;
+}
+
+/* Larger uploaded organization logo on certificates – cover available width */
+.certificate-logo {
+    width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto 15px;
+}
+
+
+/* --------- LOGO ADJUSTMENTS --------- */
+/* Smaller Robomanthan logo (navbar) */
+.navbar img.logo {
+    max-width: 120px;
+    height: auto;
+    margin-right: 10px;
 }
 
 /* Larger uploaded organization logo on certificates */
