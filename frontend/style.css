@@ -192,6 +192,22 @@ input:focus {
 
 /* ---------- SUCCESS ---------- */
 
+/* --------- LOGO ADJUSTMENTS --------- */
+/* Smaller Robomanthan logo (navbar) */
+.navbar img.logo {
+    max-width: 120px;
+    height: auto;
+    margin-right: 10px;
+}
+
+/* Larger uploaded organization logo on certificates */
+.certificate-logo {
+    max-width: 250px;
+    height: auto;
+    display: block;
+    margin: 0 auto 15px;
+}
+
 .success {
   margin-top: 25px;
 
