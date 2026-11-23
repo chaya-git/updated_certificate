@@ -445,28 +445,13 @@ const signMap = {
 };
 
 const LOGO = {
-  // Robomanthan logo (moved to the left side, where REVA used to be)
-  x: 100,
-  y: 470,
-  width: 90,
-  height: 90,
+  x: 1798,
+  y: 170,
+  width: 255,
+  height: 255,
 };
 
-// REVA logo (now placed on the right side, where Robomanthan was)
-const REVA_LOGO = {
-  x: 500,
-  y: 470,
-  width: 120,
-  height: 90,
-};
 
-// AICTE logo remains on the far right
-const AICTE_LOGO = {
-  x: 630,
-  y: 470,
-  width: 120,
-  height: 90,
-};
 
 
 
@@ -644,12 +629,7 @@ async function buildCertificatePdf(fields, logoFile) {
   // Draw main organization logo
   page.drawImage(organizationLogoImage, LOGO);
   // Draw partner logos REVA and AICTE
-  const revaBytes = fs.readFileSync(path.join(__dirname, "assets", "reva.png"));
-  const revaImg = await pdfDoc.embedPng(revaBytes);
-  page.drawImage(revaImg, REVA_LOGO);
-  const aicteBytes = fs.readFileSync(path.join(__dirname, "assets", "aicte.png"));
-  const aicteImg = await pdfDoc.embedPng(aicteBytes);
-  page.drawImage(aicteImg, AICTE_LOGO);
+
 }
         
 
