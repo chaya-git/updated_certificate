@@ -432,8 +432,8 @@ const signMap = {
   },
 };
 
-// Uploaded partner / organization logos placed on the left side, one below the other, larger.
-const LOGO_AREA = { x: 50, y: 435, width: 155, height: 125, gap: 8 };
+// Uploaded partner / organization logos placed on the left side, one below the other, covering full available space.
+const LOGO_AREA = { x: 36, y: 425, width: 168, height: 135, gap: 6 };
 
 // Stacks all logos in ONE column, one below the other (first logo on top).
 // Each logo keeps its aspect ratio and is centered in its own slot.

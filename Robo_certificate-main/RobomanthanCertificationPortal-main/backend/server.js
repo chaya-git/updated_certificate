@@ -445,11 +445,11 @@ const signMap = {
 };
 
 const LOGO = {
-  // Organization / partner logos uploaded during generation (placed on the left side, bigger)
-  x: 55,
-  y: 445,
-  width: 140,
-  height: 105,
+  // Organization / partner logos uploaded during generation (placed on the left side, covering full available space)
+  x: 36,
+  y: 425,
+  width: 168,
+  height: 135,
 };
 
 
