@@ -451,6 +451,25 @@ const LOGO = {
   height: 90,
 };
 
+// Additional partner logos (REVA and AICTE) positioned to the left of the organization logo
+const REVA_LOGO = {
+  x: 500,
+  y: 470,
+  width: 120,
+  height: 90,
+};
+const AICTE_LOGO = {
+  x: 630,
+  y: 470,
+  width: 120,
+  height: 90,
+};
+  x: 700,
+  y: 470,
+  width: 90,
+  height: 90,
+};
+
 // Builds a single certificate PDF and persists it (DB row + file on disk).
 // `fields` is the same shape as req.body for /generateCertificate.
 // `logoFile` is the same shape as req.file (multer) — pass null if none.
@@ -619,6 +638,16 @@ async function buildCertificatePdf(fields, logoFile) {
       
 
       if (organizationLogoImage) {
+  // Draw main organization logo
+  page.drawImage(organizationLogoImage, LOGO);
+  // Draw partner logos REVA and AICTE
+  const revaBytes = fs.readFileSync(path.join(__dirname, "assets", "reva.png"));
+  const revaImg = await pdfDoc.embedPng(revaBytes);
+  page.drawImage(revaImg, REVA_LOGO);
+  const aicteBytes = fs.readFileSync(path.join(__dirname, "assets", "aicte.png"));
+  const aicteImg = await pdfDoc.embedPng(aicteBytes);
+  page.drawImage(aicteImg, AICTE_LOGO);
+}
         
 
         page.drawImage(organizationLogoImage, LOGO);
