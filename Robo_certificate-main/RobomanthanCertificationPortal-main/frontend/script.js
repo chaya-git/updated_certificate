@@ -5,11 +5,11 @@
 // opens this page via your PC's LAN IP (for QR-code testing), it will
 // automatically call the backend running on that same PC — no manual
 // switching needed.
-const PRODUCTION_HOSTNAME = "updated-certificate.vercel.app"; // <-- your deployed frontend's hostname (no https://, no trailing slash)
 const API_BASE_URL =
-  window.location.hostname === PRODUCTION_HOSTNAME
-    ? "https://robo-certificate.onrender.com" // <-- your deployed backend
-    : `http://${window.location.hostname}:5000`;
+  window.location.hostname.includes("localhost") ||
+  window.location.hostname === "127.0.0.1"
+    ? `http://${window.location.hostname}:5000`
+    : "https://updated-certificate-1.onrender.com";
 
 if (window.location.pathname.includes("admin.html")) {
   if (localStorage.getItem("adminAccess") !== "true") {

@@ -11,7 +11,7 @@ const archiver = require("archiver");
 // a URL your phone (on any network) can actually reach — not localhost.
 // Set FRONTEND_URL in your .env to wherever verify.html is really hosted.
 // Falls back to your live Vercel frontend if the env var isn't set.
-const FRONTEND_URL = process.env.FRONTEND_URL || "https://updated-certificate.vercel.app";
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://updated-certificate-lqj8.vercel.app";
 app.use("/uploads", express.static("uploads"));
 app.use("/generated-certificates", express.static("generated-certificates"));
 
