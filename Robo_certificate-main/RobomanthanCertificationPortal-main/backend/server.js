@@ -445,10 +445,11 @@ const signMap = {
 };
 
 const LOGO = {
-  x: 1798,
-  y: 170,
-  width: 255,
-  height: 255,
+  // Organization / partner logos uploaded during generation (placed on the left side, bigger)
+  x: 55,
+  y: 445,
+  width: 140,
+  height: 105,
 };
 
 
@@ -626,13 +627,7 @@ async function buildCertificatePdf(fields, logoFile) {
       
 
       if (organizationLogoImage) {
-  // Draw main organization logo
-  page.drawImage(organizationLogoImage, LOGO);
-  // Draw partner logos REVA and AICTE
-
-}
-        
-
+        // Draw organization / partner logo on the left side
         page.drawImage(organizationLogoImage, LOGO);
       }
 
