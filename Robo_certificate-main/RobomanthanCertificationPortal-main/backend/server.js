@@ -445,30 +445,56 @@ const signMap = {
 };
 
 const LOGO = {
-  x: 700,
+  // Robomanthan logo (moved to the left side, where REVA used to be)
+  x: 100,
   y: 470,
   width: 90,
   height: 90,
 };
 
-// Additional partner logos (REVA and AICTE) positioned to the left of the organization logo
+// REVA logo (now placed on the right side, where Robomanthan was)
 const REVA_LOGO = {
   x: 500,
   y: 470,
   width: 120,
   height: 90,
 };
+
+// AICTE logo remains on the far right
 const AICTE_LOGO = {
   x: 630,
   y: 470,
   width: 120,
   height: 90,
 };
-  x: 700,
+  // Robomanthan (main organization) logo placed on the right side
+  x: 500,
   y: 470,
   width: 90,
   height: 90,
 };
+
+// REVA logo placed on the left side
+const REVA_LOGO = {
+  // REVA logo moved to the original Robomanthan position on the right
+  x: 700,
+  y: 470,
+  width: 120,
+  height: 90,
+};
+};
+
+// AICTE logo remains on the right, next to Robomanthan
+const AICTE_LOGO = {
+  x: 630,
+  y: 470,
+  width: 120,
+  height: 90,
+};
+
+
+
+
 
 // Builds a single certificate PDF and persists it (DB row + file on disk).
 // `fields` is the same shape as req.body for /generateCertificate.
