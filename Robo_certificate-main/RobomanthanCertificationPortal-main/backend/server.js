@@ -467,30 +467,7 @@ const AICTE_LOGO = {
   width: 120,
   height: 90,
 };
-  // Robomanthan (main organization) logo placed on the right side
-  x: 500,
-  y: 470,
-  width: 90,
-  height: 90,
-};
 
-// REVA logo placed on the left side
-const REVA_LOGO = {
-  // REVA logo moved to the original Robomanthan position on the right
-  x: 700,
-  y: 470,
-  width: 120,
-  height: 90,
-};
-};
-
-// AICTE logo remains on the right, next to Robomanthan
-const AICTE_LOGO = {
-  x: 630,
-  y: 470,
-  width: 120,
-  height: 90,
-};
 
 
 
