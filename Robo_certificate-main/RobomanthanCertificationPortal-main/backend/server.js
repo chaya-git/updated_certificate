@@ -796,9 +796,9 @@ async function buildCertificatePdf(fields, logoFiles, secondSignFile = null) {
           });
           if (authorizedSignImage) {
             drawFittedSignature(page, authorizedSignImage, {
-              boxX: 275,
+              boxX: 265,
               boxY: 90,
-              boxW: 95,
+              boxW: 105,
               boxH: 42,
             });
           }
@@ -937,9 +937,9 @@ async function buildCertificatePdf(fields, logoFiles, secondSignFile = null) {
           });
           if (authorizedSignImage) {
             drawFittedSignature(page, authorizedSignImage, {
-              boxX: 275,
+              boxX: 265,
               boxY: 90,
-              boxW: 95,
+              boxW: 105,
               boxH: 42,
             });
           }
@@ -1073,9 +1073,9 @@ async function buildCertificatePdf(fields, logoFiles, secondSignFile = null) {
           });
           if (authorizedSignImage) {
             drawFittedSignature(page, authorizedSignImage, {
-              boxX: 275,
+              boxX: 265,
               boxY: 110,
-              boxW: 95,
+              boxW: 105,
               boxH: 42,
             });
           }
@@ -1237,9 +1237,9 @@ async function buildCertificatePdf(fields, logoFiles, secondSignFile = null) {
           });
           if (authorizedSignImage) {
             drawFittedSignature(page, authorizedSignImage, {
-              boxX: 275,
+              boxX: 265,
               boxY: 110,
-              boxW: 95,
+              boxW: 105,
               boxH: 42,
             });
           }
@@ -1377,9 +1377,9 @@ async function buildCertificatePdf(fields, logoFiles, secondSignFile = null) {
           });
           if (authorizedSignImage) {
             drawFittedSignature(page, authorizedSignImage, {
-              boxX: 275,
+              boxX: 265,
               boxY: 110,
-              boxW: 95,
+              boxW: 105,
               boxH: 42,
             });
           }
@@ -1537,9 +1537,9 @@ async function buildCertificatePdf(fields, logoFiles, secondSignFile = null) {
           });
           if (authorizedSignImage) {
             drawFittedSignature(page, authorizedSignImage, {
-              boxX: 275,
+              boxX: 265,
               boxY: 110,
-              boxW: 95,
+              boxW: 105,
               boxH: 42,
             });
           }
@@ -1658,9 +1658,9 @@ async function buildCertificatePdf(fields, logoFiles, secondSignFile = null) {
           });
           if (authorizedSignImage) {
             drawFittedSignature(page, authorizedSignImage, {
-              boxX: 275,
+              boxX: 265,
               boxY: 110,
-              boxW: 95,
+              boxW: 105,
               boxH: 42,
             });
           }
@@ -1801,9 +1801,9 @@ async function buildCertificatePdf(fields, logoFiles, secondSignFile = null) {
           });
           if (authorizedSignImage) {
             drawFittedSignature(page, authorizedSignImage, {
-              boxX: 275,
+              boxX: 265,
               boxY: 110,
-              boxW: 95,
+              boxW: 105,
               boxH: 42,
             });
           }
