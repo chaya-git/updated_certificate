@@ -415,6 +415,11 @@ async function generateCertificate() {
       formData.append("organizationLogos", file);
     }
 
+    const otherSigFile = document.getElementById("otherSignatorySignature")?.files?.[0];
+    if (secondSignatory === "other" && otherSigFile) {
+      formData.append("otherSignatorySignature", otherSigFile);
+    }
+
     const response = await fetch(`${API_BASE_URL}/generateCertificate`, {
       method: "POST",
       body: formData,
@@ -721,6 +726,11 @@ async function generateBundleCertificates() {
     const logoInput = document.getElementById("organizationLogoBundle");
     if (logoInput && logoInput.files) for (const file of logoInput.files) {
       formData.append("organizationLogos", file);
+    }
+
+    const otherSigInput = document.getElementById("otherSignatorySignatureBundle");
+    if (val("secondSignatoryBundle") === "other" && otherSigInput && otherSigInput.files && otherSigInput.files[0]) {
+      formData.append("otherSignatorySignature", otherSigInput.files[0]);
     }
 
     const response = await fetch(`${API_BASE_URL}/generateBulkCertificates`, {

@@ -1,14 +1,9 @@
 // Single place to configure the backend URL.
-// Only the real deployed frontend domain is treated as "production" — every
-// other host (localhost, 127.0.0.1, or your PC's LAN IP like 192.168.x.x)
-// talks to a backend on that SAME host, port 5000. This means if your phone
-// opens this page via your PC's LAN IP (for QR-code testing), it will
-// automatically call the backend running on that same PC — no manual
-// switching needed.
+// Locally it auto-detects localhost; production points at the deployed backend.
 const API_BASE_URL =
-  window.location.hostname.includes("localhost") ||
+  window.location.hostname === "localhost" ||
   window.location.hostname === "127.0.0.1"
-    ? `http://${window.location.hostname}:5000`
+    ? "http://localhost:5000"
     : "https://updated-certificate-1.onrender.com";
 
 if (window.location.pathname.includes("admin.html")) {
@@ -55,12 +50,8 @@ async function verifyCertificate() {
       return;
     }
 
-    const pdfFileName = data.file_url
-      ? data.file_url.replace(/\\/g, "/").split("/").pop()
-      : null;
-
-    const pdfUrl = pdfFileName
-      ? `${API_BASE_URL}/download-certificate/${pdfFileName}`
+    const pdfUrl = data.file_url
+      ? `${API_BASE_URL}/${data.file_url.replace(/\\/g, "/")}`
       : null;
 
     // /certificate/:id (which the QR code hits) returns every column on
@@ -76,7 +67,6 @@ async function verifyCertificate() {
       internship: "Internship",
       course: "Course Completion",
       hackathon: "Hackathon Participation",
-      workshop: "Workshop Attendance",
       fulltime: "Full-time Experience",
     };
 
@@ -135,19 +125,15 @@ function showSection() {
 
   document.getElementById("addSection").style.display = "none";
   document.getElementById("bundleSection").style.display = "none";
-  document.getElementById("downloadSection").style.display = "none";
   document.getElementById("editSection").style.display = "none";
   document.getElementById("deleteSection").style.display = "none";
 
   if (value === "add")
     document.getElementById("addSection").style.display = "block";
 
-  if (value === "bundle")
+  if (value === "bundle") {
     document.getElementById("bundleSection").style.display = "block";
-
-  if (value === "download") {
-    document.getElementById("downloadSection").style.display = "block";
-    loadDownloadList();
+    changeCertificateTypeBundle();
   }
 
   if (value === "edit")
@@ -156,7 +142,6 @@ function showSection() {
   if (value === "delete")
     document.getElementById("deleteSection").style.display = "block";
 }
-
 // async function addCertificate() {
 //   const certificateId = document.getElementById("certificateId").value;
 
@@ -209,8 +194,7 @@ async function searchCertificate() {
       return;
     }
 
-    const pdfFileName = data.file_url.replace(/\\/g, "/").split("/").pop();
-    const pdfUrl = `${API_BASE_URL}/download-certificate/${pdfFileName}`;
+    const pdfUrl = `${API_BASE_URL}/${data.file_url.replace(/\\/g, "/")}`;
 
     resultDiv.innerHTML = `
       <h3>Certificate Found</h3>
@@ -399,7 +383,7 @@ async function generateCertificate() {
       "fourthSignatoryDesignation",
     ).value;
 
-    const logoFile = document.getElementById("organizationLogo").files[0];
+    const logoFiles = document.getElementById("organizationLogo").files;
 
     const formData = new FormData();
 
@@ -427,8 +411,13 @@ async function generateCertificate() {
     formData.append("fourthSignatoryName", fourthSignatoryName);
     formData.append("fourthSignatoryDesignation", fourthSignatoryDesignation);
 
-    if (logoFile) {
-      formData.append("organizationLogo", logoFile);
+    for (const file of logoFiles) {
+      formData.append("organizationLogos", file);
+    }
+
+    const otherSigFile = document.getElementById("otherSignatorySignature")?.files?.[0];
+    if (secondSignatory === "other" && otherSigFile) {
+      formData.append("otherSignatorySignature", otherSigFile);
     }
 
     const response = await fetch(`${API_BASE_URL}/generateCertificate`, {
@@ -442,7 +431,7 @@ async function generateCertificate() {
     const resultDiv = document.getElementById("generateResult");
 
     if (result.success && result.pdf) {
-      const pdfUrl = `${API_BASE_URL}/download-certificate/${result.pdf}`;
+      const pdfUrl = `${API_BASE_URL}/generated-certificates/${result.pdf}`;
 
       if (resultDiv) {
         resultDiv.innerHTML = `
@@ -483,7 +472,7 @@ function changeCertificateType() {
 
   const collegeName = document.getElementById("collegeName");
   const programName = document.getElementById("programName");
-  const role = document.getElementById("role");
+  const role = document.getElementById("role"); role.style.display = type === "course" ? "none" : "block"; if (type === "course") role.value = "";
   const department = document.getElementById("department");
 
   if (type === "internship") {
@@ -511,14 +500,6 @@ function changeCertificateType() {
     programName.placeholder = "Hackathon Name";
     role.placeholder = "Team Name";
     department.placeholder = "Team Rank";
-  } else if (type === "workshop") {
-    collegeName.style.display = "block";
-    department.style.display = "block";
-    descriptionSection.style.display = "block";
-    collegeName.placeholder = "College Name";
-    programName.placeholder = "Workshop Name";
-    role.placeholder = "Facilitator";
-    department.placeholder = "Workshop Domain";
   } else if (type === "fulltime") {
     collegeName.style.display = "block";
     department.style.display = "none";
@@ -573,7 +554,7 @@ function changeCertificateTypeBundle() {
 
   const collegeName = document.getElementById("collegeNameBundle");
   const programName = document.getElementById("programNameBundle");
-  const role = document.getElementById("roleBundle");
+  const role = document.getElementById("roleBundle"); role.style.display = type === "course" ? "none" : "block"; if (type === "course") role.value = "";
   const department = document.getElementById("departmentBundle");
 
   if (type === "internship") {
@@ -660,55 +641,97 @@ function parseStudentsList(raw) {
 
 async function generateBundleCertificates() {
   const resultDiv = document.getElementById("bundleResult");
+  const btn = document.getElementById("bundleGenerateBtn");
+
+  const setFeedback = (html) => {
+    if (resultDiv) resultDiv.innerHTML = html;
+  };
+
+  const resetButton = () => {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = "Generate & Download Bundle";
+    }
+  };
 
   try {
-    const studentsRaw = document.getElementById("studentsList").value;
+    if (btn) {
+      btn.disabled = true;
+      btn.innerText = "⏳ Generating certificates... Please wait...";
+    }
+
+    setFeedback(`
+      <div style="padding:12px; background:#e3f2fd; border:1px solid #90caf9; color:#0d47a1; border-radius:6px; margin-top:14px; font-size:15px;">
+        ⏳ <strong>Processing...</strong> Checking input and preparing certificates...
+      </div>
+    `);
+
+    const studentsRaw = (document.getElementById("studentsList")?.value || "").trim();
     const students = parseStudentsList(studentsRaw);
 
     if (students.length === 0) {
-      alert("Please enter at least one student (Name, RM ID) — one per line.");
+      setFeedback(`
+        <div style="padding:12px; background:#ffebee; border:1px solid #ef9a9a; color:#c62828; border-radius:6px; margin-top:14px; font-size:14px;">
+          ⚠️ <strong>No students entered:</strong> Please enter at least one student in the text area (e.g. <code>Asha Rao, RM25201</code>) — one per line.
+        </div>
+      `);
+      resetButton();
       return;
     }
 
     const invalid = students.find((s) => !s.recipientName || !s.certificateId);
     if (invalid) {
-      alert(
-        `Every line needs both a name and an RM ID, separated by a comma.\nProblem line: "${invalid.recipientName}, ${invalid.certificateId}"`,
-      );
+      setFeedback(`
+        <div style="padding:12px; background:#ffebee; border:1px solid #ef9a9a; color:#c62828; border-radius:6px; margin-top:14px; font-size:14px;">
+          ⚠️ <strong>Format error:</strong> Every line must have both a name and an RM ID separated by a comma.<br/>Problem line: <code>"${invalid.recipientName || ""}, ${invalid.certificateId || ""}"</code>
+        </div>
+      `);
+      resetButton();
       return;
     }
 
+    setFeedback(`
+      <div style="padding:14px; background:#e3f2fd; border:1px solid #90caf9; color:#0d47a1; border-radius:6px; margin-top:14px; font-size:15px; line-height:1.5;">
+        ⏳ <strong>Generating ${students.length} certificate(s)...</strong><br/>
+        Building dynamic PDFs with QR codes and packaging into ZIP. This takes a few seconds, please wait!
+      </div>
+    `);
+
+    const val = (id) => (document.getElementById(id) ? document.getElementById(id).value : "");
     const formData = new FormData();
 
-    formData.append("collegeName", document.getElementById("collegeNameBundle").value);
-    formData.append("programName", document.getElementById("programNameBundle").value);
-    formData.append("role", document.getElementById("roleBundle").value);
-    formData.append("department", document.getElementById("departmentBundle").value);
-    formData.append("startDate", document.getElementById("startDateBundle").value);
-    formData.append("endDate", document.getElementById("endDateBundle").value);
-    formData.append("issueDate", document.getElementById("issueDateBundle").value);
-    formData.append("certificateType", document.getElementById("certificateTypeBundle").value);
-    formData.append("customDescription", document.getElementById("customDescriptionBundle").value);
-    formData.append("useCustomDescription", document.getElementById("useCustomDescriptionBundle").value);
-    formData.append("includeAuthorizedSign", document.getElementById("includeAuthorizedSignBundle").value);
-    formData.append("secondSignatory", document.getElementById("secondSignatoryBundle").value);
-    formData.append("includeSecondSign", document.getElementById("includeSecondSignBundle").value);
-    formData.append("otherSignatoryName", document.getElementById("otherSignatoryNameBundle").value);
-    formData.append("otherSignatoryDesignation", document.getElementById("otherSignatoryDesignationBundle").value);
-    formData.append("includeThirdSign", document.getElementById("includeThirdSignBundle").value);
-    formData.append("thirdSignatoryName", document.getElementById("thirdSignatoryNameBundle").value);
-    formData.append("thirdSignatoryDesignation", document.getElementById("thirdSignatoryDesignationBundle").value);
-    formData.append("includeFourthSign", document.getElementById("includeFourthSignBundle").value);
-    formData.append("fourthSignatoryName", document.getElementById("fourthSignatoryNameBundle").value);
-    formData.append("fourthSignatoryDesignation", document.getElementById("fourthSignatoryDesignationBundle").value);
+    formData.append("collegeName", val("collegeNameBundle"));
+    formData.append("programName", val("programNameBundle"));
+    formData.append("role", val("roleBundle"));
+    formData.append("department", val("departmentBundle"));
+    formData.append("startDate", val("startDateBundle"));
+    formData.append("endDate", val("endDateBundle"));
+    formData.append("issueDate", val("issueDateBundle"));
+    formData.append("certificateType", val("certificateTypeBundle") || "internship");
+    formData.append("customDescription", val("customDescriptionBundle"));
+    formData.append("useCustomDescription", val("useCustomDescriptionBundle") || "no");
+    formData.append("includeAuthorizedSign", val("includeAuthorizedSignBundle") || "no");
+    formData.append("secondSignatory", val("secondSignatoryBundle") || "CMO");
+    formData.append("includeSecondSign", val("includeSecondSignBundle") || "yes");
+    formData.append("otherSignatoryName", val("otherSignatoryNameBundle"));
+    formData.append("otherSignatoryDesignation", val("otherSignatoryDesignationBundle"));
+    formData.append("includeThirdSign", val("includeThirdSignBundle") || "no");
+    formData.append("thirdSignatoryName", val("thirdSignatoryNameBundle"));
+    formData.append("thirdSignatoryDesignation", val("thirdSignatoryDesignationBundle"));
+    formData.append("includeFourthSign", val("includeFourthSignBundle") || "no");
+    formData.append("fourthSignatoryName", val("fourthSignatoryNameBundle"));
+    formData.append("fourthSignatoryDesignation", val("fourthSignatoryDesignationBundle"));
     formData.append("students", JSON.stringify(students));
 
-    const logoFile = document.getElementById("organizationLogoBundle").files[0];
-    if (logoFile) {
-      formData.append("organizationLogo", logoFile);
+    const logoInput = document.getElementById("organizationLogoBundle");
+    if (logoInput && logoInput.files) for (const file of logoInput.files) {
+      formData.append("organizationLogos", file);
     }
 
-    resultDiv.innerHTML = `<p>Generating ${students.length} certificates… this can take a little while.</p>`;
+    const otherSigInput = document.getElementById("otherSignatorySignatureBundle");
+    if (val("secondSignatoryBundle") === "other" && otherSigInput && otherSigInput.files && otherSigInput.files[0]) {
+      formData.append("otherSignatorySignature", otherSigInput.files[0]);
+    }
 
     const response = await fetch(`${API_BASE_URL}/generateBulkCertificates`, {
       method: "POST",
@@ -716,12 +739,17 @@ async function generateBundleCertificates() {
     });
 
     if (!response.ok) {
-      let message = "Failed to generate the bundle.";
+      let message = "Failed to generate the certificate bundle.";
       try {
         const err = await response.json();
         message = err.message || message;
       } catch (e) {}
-      resultDiv.innerHTML = `<p style="color:red">${message}</p>`;
+      setFeedback(`
+        <div style="padding:12px; background:#ffebee; border:1px solid #ef9a9a; color:#c62828; border-radius:6px; margin-top:14px; font-size:14px;">
+          ❌ <strong>Generation Failed:</strong> ${message}
+        </div>
+      `);
+      resetButton();
       return;
     }
 
@@ -735,87 +763,20 @@ async function generateBundleCertificates() {
     a.remove();
     window.URL.revokeObjectURL(url);
 
-    const successCount = response.headers.get("X-Bundle-Success-Count");
-    const failedCount = response.headers.get("X-Bundle-Failed-Count");
-
-    if (failedCount && Number(failedCount) > 0) {
-      resultDiv.innerHTML = `<p>⚠️ Downloaded ${successCount || "some"} certificate(s). ${failedCount} failed — see failed_certificates.txt inside the zip for details.</p>`;
-    } else {
-      resultDiv.innerHTML = `<p>✅ Downloaded ${successCount || students.length} certificates as a zip.</p>`;
-    }
+    setFeedback(`
+      <div style="padding:14px; background:#e8f5e9; border:1px solid #a5d6a7; color:#1b5e20; border-radius:6px; margin-top:14px; font-size:15px;">
+        ✅ <strong>Success!</strong> Successfully generated and downloaded <strong>${students.length} certificate(s)</strong> as a ZIP file.
+      </div>
+    `);
+    resetButton();
   } catch (err) {
     console.error(err);
-    resultDiv.innerHTML = `<p style="color:red">Error generating bundle: ${err.message}</p>`;
+    setFeedback(`
+      <div style="padding:12px; background:#ffebee; border:1px solid #ef9a9a; color:#c62828; border-radius:6px; margin-top:14px; font-size:14px;">
+        ❌ <strong>Error:</strong> ${err.message}
+      </div>
+    `);
+    resetButton();
   }
 }
 
-// ---------- Download Certificates (browse & download any past certificate) ----------
-
-let allCertificatesCache = [];
-
-async function loadDownloadList() {
-  const statusDiv = document.getElementById("downloadListStatus");
-  statusDiv.innerHTML = "<p>Loading certificates…</p>";
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/certificates`);
-
-    if (!response.ok) {
-      statusDiv.innerHTML = `<p style="color:red">Failed to load certificates (status ${response.status}).</p>`;
-      return;
-    }
-
-    const rows = await response.json();
-
-    // Newest first — falls back gracefully if there's no created_at/timestamp column.
-    allCertificatesCache = [...rows].reverse();
-
-    statusDiv.innerHTML = `<p>${allCertificatesCache.length} certificate(s) found.</p>`;
-    renderDownloadList();
-  } catch (err) {
-    console.error(err);
-    statusDiv.innerHTML = `<p style="color:red">Error loading certificates: ${err.message}</p>`;
-  }
-}
-
-function renderDownloadList() {
-  const listDiv = document.getElementById("downloadList");
-  const query = (document.getElementById("downloadSearch").value || "")
-    .trim()
-    .toLowerCase();
-
-  const filtered = !query
-    ? allCertificatesCache
-    : allCertificatesCache.filter(
-        (c) =>
-          (c.certificate_id || "").toLowerCase().includes(query) ||
-          (c.recipient_name || "").toLowerCase().includes(query),
-      );
-
-  if (filtered.length === 0) {
-    listDiv.innerHTML = "<p>No matching certificates.</p>";
-    return;
-  }
-
-  listDiv.innerHTML = filtered
-    .map((c) => {
-      const pdfFileName = c.file_url
-        ? c.file_url.split("/").pop()
-        : `${c.certificate_id}.pdf`;
-      const pdfUrl = `${API_BASE_URL}/download-certificate/${pdfFileName}`;
-
-      return `
-        <div class="download-row" style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid #ddd;">
-          <div>
-            <strong>${c.recipient_name || "(no name)"}</strong>
-            &nbsp;—&nbsp; RM ID: ${c.certificate_id}
-            &nbsp;—&nbsp; ${c.certificate_type || ""}
-          </div>
-          <a href="${pdfUrl}" download="${pdfFileName}" target="_blank">
-            <button type="button">⬇️ Download</button>
-          </a>
-        </div>
-      `;
-    })
-    .join("");
-}

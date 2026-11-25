@@ -480,12 +480,22 @@ async function embedLogoImage(pdfDoc, logoBytes) {
   }
 }
 
+// Draws a signature image inside a designated box, preserving aspect ratio and centering it.
+function drawFittedSignature(page, img, { boxX, boxY, boxW, boxH }) {
+  const scale = Math.min(boxW / img.width, boxH / img.height);
+  const w = img.width * scale;
+  const h = img.height * scale;
+  const x = boxX + (boxW - w) / 2;
+  const y = boxY + (boxH - h) / 2;
+  page.drawImage(img, { x, y, width: w, height: h });
+}
+
 // Builds a single certificate PDF and persists it (DB row + file on disk).
 // `fields` is the same shape as req.body for /generateCertificate.
 // `logoFiles` is an array of multer file objects — pass [] if none.
 // Returns { pdfBytes, pdfFileName, certificateId } instead of sending a response,
 // so it can be reused by both the single-certificate route and the bulk route.
-async function buildCertificatePdf(fields, logoFiles) {
+async function buildCertificatePdf(fields, logoFiles, secondSignFile = null) {
       const {
         certificateId,
         recipientName,
@@ -686,6 +696,9 @@ async function buildCertificatePdf(fields, logoFiles) {
         );
         
         secondSignImage = await pdfDoc.embedPng(signBytes);
+      } else if (secondSignatory === "other" && secondSignFile) {
+        const signBytes = fs.readFileSync(secondSignFile.path);
+        secondSignImage = await embedLogoImage(pdfDoc, signBytes);
       }
 
       if (certificateType === "internship") {
@@ -804,11 +817,11 @@ async function buildCertificatePdf(fields, logoFiles) {
           });
           //signature image of second signatory
           if (secondSignImage) {
-            page.drawImage(secondSignImage, {
-              x: 465,
-              y: 90,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, secondSignImage, {
+              boxX: 465,
+              boxY: 90,
+              boxW: 90,
+              boxH: 40,
             });
           }
           if (includeThirdSign === "yes") {
@@ -945,11 +958,11 @@ async function buildCertificatePdf(fields, logoFiles) {
           });
           //signature image of second signatory
           if (secondSignImage) {
-            page.drawImage(secondSignImage, {
-              x: 465,
-              y: 90,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, secondSignImage, {
+              boxX: 465,
+              boxY: 90,
+              boxW: 90,
+              boxH: 40,
             });
           }
         }
@@ -1081,11 +1094,11 @@ async function buildCertificatePdf(fields, logoFiles) {
           });
           //signature image of second signatory
           if (secondSignImage) {
-            page.drawImage(secondSignImage, {
-              x: 465,
-              y: 110,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, secondSignImage, {
+              boxX: 465,
+              boxY: 110,
+              boxW: 90,
+              boxH: 40,
             });
           }
           if (includeThirdSign === "yes") {
@@ -1245,11 +1258,11 @@ async function buildCertificatePdf(fields, logoFiles) {
           });
           //signature image of second signatory
           if (secondSignImage) {
-            page.drawImage(secondSignImage, {
-              x: 465,
-              y: 110,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, secondSignImage, {
+              boxX: 465,
+              boxY: 110,
+              boxW: 90,
+              boxH: 40,
             });
           }
         }
@@ -1385,11 +1398,11 @@ async function buildCertificatePdf(fields, logoFiles) {
           });
           //signature image of second signatory
           if (secondSignImage) {
-            page.drawImage(secondSignImage, {
-              x: 465,
-              y: 110,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, secondSignImage, {
+              boxX: 465,
+              boxY: 110,
+              boxW: 90,
+              boxH: 40,
             });
           }
           if (includeThirdSign === "yes") {
@@ -1545,11 +1558,11 @@ async function buildCertificatePdf(fields, logoFiles) {
           });
           //signature image of second signatory
           if (secondSignImage) {
-            page.drawImage(secondSignImage, {
-              x: 465,
-              y: 110,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, secondSignImage, {
+              boxX: 465,
+              boxY: 110,
+              boxW: 90,
+              boxH: 40,
             });
           }
         }
@@ -1666,11 +1679,11 @@ async function buildCertificatePdf(fields, logoFiles) {
           });
           //signature image of second signatory
           if (secondSignImage) {
-            page.drawImage(secondSignImage, {
-              x: 465,
-              y: 110,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, secondSignImage, {
+              boxX: 465,
+              boxY: 110,
+              boxW: 90,
+              boxH: 40,
             });
           }
           if (includeThirdSign === "yes") {
@@ -1809,11 +1822,11 @@ async function buildCertificatePdf(fields, logoFiles) {
           });
           //signature image of second signatory
           if (secondSignImage) {
-            page.drawImage(secondSignImage, {
-              x: 465,
-              y: 110,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, secondSignImage, {
+              boxX: 465,
+              boxY: 110,
+              boxW: 90,
+              boxH: 40,
             });
           }
         }
@@ -1847,10 +1860,17 @@ async function buildCertificatePdf(fields, logoFiles) {
 // around buildCertificatePdf().
 app.post(
   "/generateCertificate",
-  upload.array("organizationLogos", 10),
+  upload.any(),
   async (req, res) => {
     try {
-      const result = await buildCertificatePdf(req.body, req.files || []);
+      const allFiles = req.files || [];
+      const logoFiles = allFiles.filter(
+        (f) => f.fieldname === "organizationLogos" || f.fieldname === "organizationLogo",
+      );
+      const secondSignFile = allFiles.find(
+        (f) => f.fieldname === "otherSignatorySignature",
+      );
+      const result = await buildCertificatePdf(req.body, logoFiles, secondSignFile);
 
       res.json({
         success: true,
@@ -1876,7 +1896,7 @@ app.post(
 // shared across every certificate in the batch. Streams back a .zip.
 app.post(
   "/generateBulkCertificates",
-  upload.array("organizationLogos", 10),
+  upload.any(),
   async (req, res) => {
     let students;
 
@@ -1918,6 +1938,14 @@ app.post(
 
       archive.pipe(res);
 
+      const allFiles = req.files || [];
+      const logoFiles = allFiles.filter(
+        (f) => f.fieldname === "organizationLogos" || f.fieldname === "organizationLogo",
+      );
+      const secondSignFile = allFiles.find(
+        (f) => f.fieldname === "otherSignatorySignature",
+      );
+
       const failed = [];
 
       for (const student of students) {
@@ -1936,7 +1964,7 @@ app.post(
             recipientName,
           };
 
-          const result = await buildCertificatePdf(fields, req.files || []);
+          const result = await buildCertificatePdf(fields, logoFiles, secondSignFile);
 
           archive.append(Buffer.from(result.pdfBytes), {
             name: `${result.certificateId}.pdf`,

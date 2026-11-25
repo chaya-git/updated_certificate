@@ -8,6 +8,17 @@
   </head>
   <body>
     <div class="navbar">
+  <img src="https://via.placeholder.com/150x50?text=Robomanthan" alt="Robomanthan Logo" class="logo" />
+  <h1>🤖 Robomanthan Certificates</h1>
+  <div class="navbar-right">
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="verify.html">Verify Certificate</a>
+      <a href="#" onclick="openAdminLogin()">Admin</a>
+    </div>
+    <button id="modeBtn" onclick="toggleMode()">🌙 Dark Mode</button>
+  </div>
+</div>
       <h1>🤖 Robomanthan Certificates</h1>
 
       <div class="navbar-right">
@@ -25,7 +36,6 @@
     <select id="useType" onchange="showSection()">
       <option value="add">Add Certificate</option>
       <option value="bundle">Bundle Download</option>
-      <option value="download">Download Certificates</option>
       <option value="edit">Edit Certificate</option>
       <option value="delete">Delete Certificate</option>
     </select>
@@ -40,7 +50,6 @@
           <option value="internship">Internship</option>
           <option value="course">Course</option>
           <option value="hackathon">Hackathon</option>
-          <option value="workshop">Workshop</option>
           <option value="fulltime">Fulltime/Experience</option>
         </select>
       </div>
@@ -104,6 +113,9 @@
 
           <label>Designation / Organization</label>
           <input id="otherSignatoryDesignation" />
+
+          <label>Signature Image (Optional)</label>
+          <input type="file" id="otherSignatorySignature" accept="image/*" />
         </div>
 
         <div id="includeSecondSignContainer">
@@ -150,8 +162,8 @@
           <input id="fourthSignatoryDesignation" />
         </div>
 
-        <label>Organization Logo (Optional)</label>
-        <input type="file" id="organizationLogo" accept=".png,.jpg,.jpeg" />
+        <label>Organization Logos (Optional - select multiple, first one is shown on top)</label>
+        <input type="file" id="organizationLogo" accept="image/*" multiple />
       </div>
       <br />
       <button onclick="generateCertificate()">Generate Certificate</button>
@@ -177,7 +189,6 @@
           <option value="internship">Internship</option>
           <option value="course">Course</option>
           <option value="hackathon">Hackathon</option>
-          <option value="workshop">Workshop</option>
           <option value="fulltime">Fulltime/Experience</option>
         </select>
       </div>
@@ -234,6 +245,9 @@
 
           <label>Designation / Organization</label>
           <input id="otherSignatoryDesignationBundle" />
+
+          <label>Signature Image (Optional)</label>
+          <input type="file" id="otherSignatorySignatureBundle" accept="image/*" />
         </div>
 
         <div id="includeSecondSignContainerBundle">
@@ -276,8 +290,8 @@
           <input id="fourthSignatoryDesignationBundle" />
         </div>
 
-        <label>Organization Logo (Optional)</label>
-        <input type="file" id="organizationLogoBundle" accept=".png,.jpg,.jpeg" />
+        <label>Organization Logos (Optional - select multiple, first one is shown on top)</label>
+        <input type="file" id="organizationLogoBundle" accept="image/*" multiple />
       </div>
 
       <br />
@@ -290,28 +304,11 @@
       ></textarea>
 
       <br /><br />
-      <button onclick="generateBundleCertificates()">
+      <button id="bundleGenerateBtn" onclick="generateBundleCertificates()">
         Generate &amp; Download Bundle
       </button>
 
       <div id="bundleResult"></div>
-    </div>
-
-    <div id="downloadSection" style="display: none">
-      <h2>Download Certificates</h2>
-      <p>Every certificate ever generated, newest first. Search by name or RM ID, then download.</p>
-
-      <input
-        id="downloadSearch"
-        placeholder="Search by name or RM ID..."
-        oninput="renderDownloadList()"
-        style="width: 100%"
-      />
-
-      <button onclick="loadDownloadList()">🔄 Refresh List</button>
-
-      <div id="downloadListStatus"></div>
-      <div id="downloadList"></div>
     </div>
 
     <div id="editSection" style="display: none">
@@ -337,6 +334,6 @@
 
       <button onclick="deleteCertificate()">Delete Certificate</button>
     </div>
-    <script src="script.js"></script>
+    <script src="script.js?v=3.0"></script>
   </body>
 </html>

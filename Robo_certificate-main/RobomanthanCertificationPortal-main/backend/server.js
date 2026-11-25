@@ -6,6 +6,14 @@ require("dotenv").config();
 const multer = require("multer");
 const QRCode = require("qrcode");
 const archiver = require("archiver");
+const fs = require("fs");
+const path = require("path");
+const sharp = require("sharp");
+
+const uploadsDir = path.join(__dirname, "uploads");
+const certsDir = path.join(__dirname, "generated-certificates");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+if (!fs.existsSync(certsDir)) fs.mkdirSync(certsDir, { recursive: true });
 
 // This is what gets baked into every certificate's QR code, so it MUST be
 // a URL your phone (on any network) can actually reach — not localhost.
@@ -14,28 +22,6 @@ const archiver = require("archiver");
 const FRONTEND_URL = process.env.FRONTEND_URL || "https://updated-certificate-lqj8.vercel.app";
 app.use("/uploads", express.static("uploads"));
 app.use("/generated-certificates", express.static("generated-certificates"));
-
-// Forces a real browser download (Content-Disposition: attachment) instead
-// of just opening the PDF inline. The plain /generated-certificates static
-// route above can't do this reliably for cross-origin requests (frontend on
-// one domain, backend on another) because the HTML `download` attribute is
-// ignored by browsers for cross-origin links.
-app.get("/download-certificate/:filename", (req, res) => {
-  const filePath = path.join(
-    __dirname,
-    "generated-certificates",
-    req.params.filename,
-  );
-
-  res.download(filePath, (err) => {
-    if (err) {
-      console.error(err);
-      if (!res.headersSent) {
-        res.status(404).json({ success: false, message: "File not found" });
-      }
-    }
-  });
-});
 
 const pool = new Pool({
   user: process.env.DB_USER,
@@ -98,10 +84,8 @@ pool.query = async (text, params) => {
 app.use(express.json());
 app.use(cors());
 
-const fs = require("fs");
 const { PDFDocument, rgb, StandardFonts } = require("pdf-lib");
 const fontkit = require("@pdf-lib/fontkit");
-const path = require("path");
 
 // ---------------------------------------------------------------------------
 // Dynamic text-layout helpers
@@ -418,7 +402,11 @@ app.delete("/certificate/:id", async (req, res) => {
     });
   }
 });
-const PORT = 5000;
+
+// Render assigns its own port at runtime via process.env.PORT — hardcoding
+// 5000 here would prevent the deployed service from ever receiving traffic.
+// The fallback to 5000 keeps local development working exactly as before.
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
@@ -444,27 +432,70 @@ const signMap = {
   },
 };
 
-const LOGO = {
-  // Organization / partner logos uploaded during generation (placed on the left side, covering full available space)
-  x: 36,
-  y: 425,
-  width: 168,
-  height: 135,
-};
+// Uploaded partner / organization logos placed on the left side, one below the other, covering full available space.
+const LOGO_AREA = { x: 36, y: 425, width: 168, height: 135, gap: 6 };
 
+// Stacks all logos in ONE column, one below the other (first logo on top).
+// Each logo keeps its aspect ratio and is centered in its own slot.
+function layoutLogos(images, area = LOGO_AREA) {
+  const n = images.length;
+  if (n === 0) return [];
 
+  const slotH = (area.height - area.gap * (n - 1)) / n;
 
+  return images.map((img, i) => {
+    const scale = Math.min(area.width / img.width, slotH / img.height);
+    const w = img.width * scale;
+    const h = img.height * scale;
 
+    const slotTop = area.y + area.height - i * (slotH + area.gap);
 
+    return {
+      img,
+      x: area.x + (area.width - w) / 2,
+      y: slotTop - slotH + (slotH - h) / 2,
+      width: w,
+      height: h,
+    };
+  });
+}
 
+// Embeds any common image format. PNG/JPEG go straight in; everything else
+// (webp, gif, svg, bmp, tiff, avif, ...) is converted to PNG first.
+async function embedLogoImage(pdfDoc, logoBytes) {
+  const isPng =
+    logoBytes[0] === 0x89 && logoBytes[1] === 0x50 &&
+    logoBytes[2] === 0x4e && logoBytes[3] === 0x47;
+  const isJpg =
+    logoBytes[0] === 0xff && logoBytes[1] === 0xd8 && logoBytes[2] === 0xff;
 
+  if (isPng) return pdfDoc.embedPng(logoBytes);
+  if (isJpg) return pdfDoc.embedJpg(logoBytes);
+
+  try {
+    const pngBytes = await sharp(logoBytes, { density: 300 }).png().toBuffer();
+    return await pdfDoc.embedPng(pngBytes);
+  } catch (err) {
+    throw new Error("Unsupported logo file. Please upload an image file.");
+  }
+}
+
+// Draws a signature image inside a designated box, preserving aspect ratio and centering it.
+function drawFittedSignature(page, img, { boxX, boxY, boxW, boxH }) {
+  const scale = Math.min(boxW / img.width, boxH / img.height);
+  const w = img.width * scale;
+  const h = img.height * scale;
+  const x = boxX + (boxW - w) / 2;
+  const y = boxY + (boxH - h) / 2;
+  page.drawImage(img, { x, y, width: w, height: h });
+}
 
 // Builds a single certificate PDF and persists it (DB row + file on disk).
 // `fields` is the same shape as req.body for /generateCertificate.
-// `logoFile` is the same shape as req.file (multer) — pass null if none.
+// `logoFiles` is an array of multer file objects — pass [] if none.
 // Returns { pdfBytes, pdfFileName, certificateId } instead of sending a response,
 // so it can be reused by both the single-certificate route and the bulk route.
-async function buildCertificatePdf(fields, logoFile) {
+async function buildCertificatePdf(fields, logoFiles, secondSignFile = null) {
       const {
         certificateId,
         recipientName,
@@ -499,14 +530,11 @@ async function buildCertificatePdf(fields, logoFile) {
 
         hackathon:
           "The participant demonstrated innovation, creativity, teamwork, problem-solving ability, technical expertise, and dedication throughout the hackathon event.",
-
-        workshop:
-          "The attendee engaged actively throughout the workshop, gaining hands-on exposure and practical knowledge of the subject under expert guidance.",
       };
 
       let descriptionText = "";
 
-      if (certificateType === "course" || certificateType === "hackathon" || certificateType === "workshop") {
+      if (certificateType === "course" || certificateType === "hackathon") {
         if (useCustomDescription === "yes" && customDescription.trim() !== "") {
           descriptionText = customDescription;
         } else {
@@ -566,16 +594,15 @@ async function buildCertificatePdf(fields, logoFile) {
       // font the rest of the template already used).
       const { nameFont, bodyFont } = await loadCertificateFonts(pdfDoc);
 
-      let organizationLogoImage = null;
+      let organizationLogoImages = [];
 
-      if (logoFile) {
+      // Ensure logoFiles is always an array
+      const logos = Array.isArray(logoFiles) ? logoFiles : (logoFiles ? [logoFiles] : []);
+
+      for (const logoFile of logos) {
         const logoBytes = fs.readFileSync(logoFile.path);
-
-        if (logoFile.mimetype === "image/png") {
-          organizationLogoImage = await pdfDoc.embedPng(logoBytes);
-        } else {
-          organizationLogoImage = await pdfDoc.embedJpg(logoBytes);
-        }
+        const img = await embedLogoImage(pdfDoc, logoBytes);
+        organizationLogoImages.push(img);
       }
 
       // `font` keeps its original name so every existing call site below
@@ -602,14 +629,14 @@ async function buildCertificatePdf(fields, logoFile) {
         if (totalSigns === 2) templateFile = "2hack.png";
         else if (totalSigns === 3) templateFile = "hack3.png";
         else templateFile = "hack4.png";
-      } else if (certificateType === "workshop") {
-        if (totalSigns === 2) templateFile = "2workshop.png";
-        else if (totalSigns === 3) templateFile = "workshop3.png";
-        else templateFile = "workshop4.png";
       } else if (certificateType === "fulltime") {
         if (totalSigns === 2) templateFile = "2exp.png";
         else if (totalSigns === 3) templateFile = "exp3.png";
         else templateFile = "exp4.png";
+      }
+
+      if (!templateFile || !fs.existsSync(path.join(__dirname, "templates", templateFile))) {
+        templateFile = "experience_certificate.png";
       }
 
       let secondSignLines = [];
@@ -636,12 +663,15 @@ async function buildCertificatePdf(fields, logoFile) {
 
       
 
-      if (organizationLogoImage) {
-        // Draw organization / partner logo on the left side
-        page.drawImage(organizationLogoImage, LOGO);
+      for (const p of layoutLogos(organizationLogoImages)) {
+        page.drawImage(p.img, {
+          x: p.x,
+          y: p.y,
+          width: p.width,
+          height: p.height,
+        });
       }
 
-      
       const verifyUrl = `${FRONTEND_URL}/verify.html?id=${certificateId}`;
 
       const qrImageBytes = await QRCode.toBuffer(verifyUrl);
@@ -666,6 +696,9 @@ async function buildCertificatePdf(fields, logoFile) {
         );
         
         secondSignImage = await pdfDoc.embedPng(signBytes);
+      } else if (secondSignatory === "other" && secondSignFile) {
+        const signBytes = fs.readFileSync(secondSignFile.path);
+        secondSignImage = await embedLogoImage(pdfDoc, signBytes);
       }
 
       if (certificateType === "internship") {
@@ -764,7 +797,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (authorizedSignImage) {
             page.drawImage(authorizedSignImage, {
               x: 275,
-              y: 100,
+              y: 90,
               width: 90,
               height: 40,
             });
@@ -784,11 +817,11 @@ async function buildCertificatePdf(fields, logoFile) {
           });
           //signature image of second signatory
           if (secondSignImage) {
-            page.drawImage(secondSignImage, {
-              x: 465,
-              y: 100,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, secondSignImage, {
+              boxX: 465,
+              boxY: 90,
+              boxW: 90,
+              boxH: 40,
             });
           }
           if (includeThirdSign === "yes") {
@@ -905,7 +938,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (authorizedSignImage) {
             page.drawImage(authorizedSignImage, {
               x: 275,
-              y: 100,
+              y: 90,
               width: 90,
               height: 40,
             });
@@ -925,11 +958,11 @@ async function buildCertificatePdf(fields, logoFile) {
           });
           //signature image of second signatory
           if (secondSignImage) {
-            page.drawImage(secondSignImage, {
-              x: 465,
-              y: 100,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, secondSignImage, {
+              boxX: 465,
+              boxY: 90,
+              boxW: 90,
+              boxH: 40,
             });
           }
         }
@@ -962,7 +995,7 @@ async function buildCertificatePdf(fields, logoFile) {
             y: 300,
             centerX,
             prefix: "has successfully completed the ",
-            suffix: " at Robomanthan.",
+            suffix: ".",
             maxValueWidth: 220,
             baseSize: 16,
           });
@@ -981,6 +1014,7 @@ async function buildCertificatePdf(fields, logoFile) {
             color: rgb(1, 1, 1),
           });
 
+          page.drawRectangle({ x: 18, y: 172, width: 142, height: 27, color: rgb(251 / 255, 250 / 255, 246 / 255) });
           page.drawText(certificateId, {
             x: 160,
             y: 267,
@@ -999,12 +1033,7 @@ async function buildCertificatePdf(fields, logoFile) {
             size: 12,
           });
 
-          page.drawText(role, {
-            x: 160,
-            y: 175,
-            size: 12,
-          });
-
+          
           page.drawImage(qrImage, {
             x: 700,
             y: 320,
@@ -1045,7 +1074,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (authorizedSignImage) {
             page.drawImage(authorizedSignImage, {
               x: 275,
-              y: 120,
+              y: 110,
               width: 90,
               height: 40,
             });
@@ -1065,11 +1094,11 @@ async function buildCertificatePdf(fields, logoFile) {
           });
           //signature image of second signatory
           if (secondSignImage) {
-            page.drawImage(secondSignImage, {
-              x: 465,
-              y: 120,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, secondSignImage, {
+              boxX: 465,
+              boxY: 110,
+              boxW: 90,
+              boxH: 40,
             });
           }
           if (includeThirdSign === "yes") {
@@ -1123,7 +1152,7 @@ async function buildCertificatePdf(fields, logoFile) {
             y: 300,
             centerX,
             prefix: "has successfully completed the ",
-            suffix: " at Robomanthan.",
+            suffix: ".",
             maxValueWidth: 220,
             baseSize: 16,
           });
@@ -1142,6 +1171,15 @@ async function buildCertificatePdf(fields, logoFile) {
             color: rgb(1, 1, 1),
           });
 
+          // Cover the "Trainer :" row that is baked into the template image
+          page.drawRectangle({
+            x: 68,
+            y: 94,
+            width: 112,
+            height: 21,
+            color: rgb(252 / 255, 251 / 255, 247 / 255),
+          });
+
           page.drawText(certificateId, {
             x: 180,
             y: 175,
@@ -1157,12 +1195,6 @@ async function buildCertificatePdf(fields, logoFile) {
           page.drawText(department, {
             x: 180,
             y: 124,
-            size: 12,
-          });
-
-          page.drawText(role, {
-            x: 180,
-            y: 99,
             size: 12,
           });
 
@@ -1206,7 +1238,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (authorizedSignImage) {
             page.drawImage(authorizedSignImage, {
               x: 275,
-              y: 120,
+              y: 110,
               width: 90,
               height: 40,
             });
@@ -1226,11 +1258,11 @@ async function buildCertificatePdf(fields, logoFile) {
           });
           //signature image of second signatory
           if (secondSignImage) {
-            page.drawImage(secondSignImage, {
-              x: 465,
-              y: 120,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, secondSignImage, {
+              boxX: 465,
+              boxY: 110,
+              boxW: 90,
+              boxH: 40,
             });
           }
         }
@@ -1263,7 +1295,7 @@ async function buildCertificatePdf(fields, logoFile) {
             y: 300,
             centerX,
             prefix: "has successfully participated in ",
-            suffix: " at Robomanthan.",
+            suffix: ".",
             maxValueWidth: 220,
             baseSize: 16,
           });
@@ -1346,7 +1378,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (authorizedSignImage) {
             page.drawImage(authorizedSignImage, {
               x: 275,
-              y: 120,
+              y: 110,
               width: 90,
               height: 40,
             });
@@ -1366,11 +1398,11 @@ async function buildCertificatePdf(fields, logoFile) {
           });
           //signature image of second signatory
           if (secondSignImage) {
-            page.drawImage(secondSignImage, {
-              x: 465,
-              y: 120,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, secondSignImage, {
+              boxX: 465,
+              boxY: 110,
+              boxW: 90,
+              boxH: 40,
             });
           }
           if (includeThirdSign === "yes") {
@@ -1423,7 +1455,7 @@ async function buildCertificatePdf(fields, logoFile) {
             y: 300,
             centerX,
             prefix: "has successfully participated in ",
-            suffix: " at Robomanthan.",
+            suffix: ".",
             maxValueWidth: 220,
             baseSize: 16,
           });
@@ -1506,7 +1538,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (authorizedSignImage) {
             page.drawImage(authorizedSignImage, {
               x: 275,
-              y: 120,
+              y: 110,
               width: 90,
               height: 40,
             });
@@ -1526,311 +1558,11 @@ async function buildCertificatePdf(fields, logoFile) {
           });
           //signature image of second signatory
           if (secondSignImage) {
-            page.drawImage(secondSignImage, {
-              x: 465,
-              y: 120,
-              width: 90,
-              height: 40,
-            });
-          }
-        }
-      } else if (certificateType === "workshop") {
-        // WORKSHOP COORDINATES HERE
-        if (totalSigns>=3) {
-          //
-          const centerX = 421;
-
-          const nameLayout = drawStudentName(page, nameFont, recipientName, {
-            centerX,
-            y: 370,
-            maxWidth: 560,
-            maxSize: 33,
-            minSize: 20,
-            color: NAME_COLOR,
-          });
-
-          const attendeeOfY = 370 - calculateVerticalSpacing(nameLayout.size);
-
-          drawAutoFitCenteredText(page, font, `Attendee of ${collegeName}`, {
-            centerX,
-            y: attendeeOfY,
-            maxWidth: 560,
-            maxSize: 17,
-            minSize: 12,
-          });
-
-          drawCompletionLine(page, font, programName, {
-            y: 300,
-            centerX,
-            prefix: "has successfully attended the ",
-            suffix: " workshop at Robomanthan.",
-            maxValueWidth: 220,
-            baseSize: 16,
-          });
-
-          page.drawText(startDate, {
-            x: 380,
-            y: 260,
-            size: 13,
-            color: rgb(1, 1, 1),
-          });
-
-          page.drawText(endDate, {
-            x: 480,
-            y: 260,
-            size: 13,
-            color: rgb(1, 1, 1),
-          });
-
-          page.drawText(certificateId, {
-            x: 140,
-            y: 270,
-            size: 12,
-          });
-
-          page.drawText(issueDate, {
-            x: 140,
-            y: 243,
-            size: 12,
-          });
-
-          page.drawText(department, {
-            x: 140,
-            y: 220,
-            size: 12,
-          });
-
-          page.drawText(role, {
-            x: 140,
-            y: 192,
-            size: 12,
-          });
-
-          page.drawImage(qrImage, {
-            x: 700,
-            y: 320,
-            width: 90,
-            height: 90,
-          });
-          const lines = wrapText(
-            descriptionText,
-            460, // max width
-            font,
-            12,
-          );
-
-          let currentY = 230;
-
-          for (const line of lines) {
-            page.drawText(line, {
-              x: 220,
-              y: currentY,
-              size: 12,
-              font,
-            });
-
-            currentY -= 18;
-          }
-          //Name of first signatory
-          page.drawText("Mr. Saurav Kumar", {
-            x: 280,
-            y: 98,
-            size: 11,
-          });
-          //designation of first signatory
-          page.drawText("CEO,Robomanthan", {
-            x: 280,
-            y: 86,
-            size: 11,
-          });
-          if (authorizedSignImage) {
-            page.drawImage(authorizedSignImage, {
-              x: 275,
-              y: 120,
-              width: 90,
-              height: 40,
-            });
-          }
-          // Name of second signatory
-          page.drawText(secondSignLines[0], {
-            x: 470, // adjust
-            y: 98,
-            size: 11,
-          });
-
-          // Designation of second signatory
-          page.drawText(secondSignLines[1], {
-            x: 470, // same x
-            y: 86,
-            size: 11,
-          });
-          //signature image of second signatory
-          if (secondSignImage) {
-            page.drawImage(secondSignImage, {
-              x: 465,
-              y: 120,
-              width: 90,
-              height: 40,
-            });
-          }
-          if (includeThirdSign === "yes") {
-            page.drawText(thirdSignatoryName, {
-              x: 70,
-              y: 98,
-              size: 11,
-            });
-            page.drawText(thirdSignatoryDesignation, {
-              x: 70,
-              y: 86,
-              size: 11,
-            });
-          }
-          if (includeFourthSign === "yes") {
-            page.drawText(fourthSignatoryName, {
-              x: 630,
-              y: 98,
-              size: 11,
-            });
-            page.drawText(fourthSignatoryDesignation, {
-              x: 630,
-              y: 86,
-              size: 11,
-            });
-          }
-        } else {
-          const centerX = 421;
-
-          const nameLayout = drawStudentName(page, nameFont, recipientName, {
-            centerX,
-            y: 370,
-            maxWidth: 560,
-            maxSize: 33,
-            minSize: 20,
-            color: NAME_COLOR,
-          });
-
-          const attendeeOfY = 370 - calculateVerticalSpacing(nameLayout.size);
-
-          drawAutoFitCenteredText(page, font, `Attendee of ${collegeName}`, {
-            centerX,
-            y: attendeeOfY,
-            maxWidth: 560,
-            maxSize: 17,
-            minSize: 12,
-          });
-
-          drawCompletionLine(page, font, programName, {
-            y: 300,
-            centerX,
-            prefix: "has successfully attended the ",
-            suffix: " workshop at Robomanthan.",
-            maxValueWidth: 220,
-            baseSize: 16,
-          });
-
-          page.drawText(startDate, {
-            x: 380,
-            y: 260,
-            size: 13,
-            color: rgb(1, 1, 1),
-          });
-
-          page.drawText(endDate, {
-            x: 480,
-            y: 260,
-            size: 13,
-            color: rgb(1, 1, 1),
-          });
-
-          page.drawText(certificateId, {
-            x: 180,
-            y: 175,
-            size: 12,
-          });
-
-          page.drawText(issueDate, {
-            x: 180,
-            y: 149,
-            size: 12,
-          });
-
-          page.drawText(department, {
-            x: 180,
-            y: 124,
-            size: 12,
-          });
-
-          page.drawText(role, {
-            x: 180,
-            y: 99,
-            size: 12,
-          });
-
-          page.drawImage(qrImage, {
-            x: 665,
-            y: 100,
-            width: 90,
-            height: 90,
-          });
-          const lines = wrapText(
-            descriptionText,
-            500, // max width
-            font,
-            12,
-          );
-
-          let currentY = 230;
-
-          for (const line of lines) {
-            page.drawText(line, {
-              x: 190,
-              y: currentY,
-              size: 12,
-              font,
-            });
-
-            currentY -= 18;
-          }
-          //Name of first signatory
-          page.drawText("Mr. Saurav Kumar", {
-            x: 280,
-            y: 98,
-            size: 11,
-          });
-          //designation of first signatory
-          page.drawText("CEO,Robomanthan", {
-            x: 280,
-            y: 86,
-            size: 11,
-          });
-          if (authorizedSignImage) {
-            page.drawImage(authorizedSignImage, {
-              x: 275,
-              y: 120,
-              width: 90,
-              height: 40,
-            });
-          }
-          // Name of second signatory
-          page.drawText(secondSignLines[0], {
-            x: 470, // adjust
-            y: 98,
-            size: 11,
-          });
-
-          // Designation of second signatory
-          page.drawText(secondSignLines[1], {
-            x: 470, // same x
-            y: 86,
-            size: 11,
-          });
-          //signature image of second signatory
-          if (secondSignImage) {
-            page.drawImage(secondSignImage, {
-              x: 465,
-              y: 120,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, secondSignImage, {
+              boxX: 465,
+              boxY: 110,
+              boxW: 90,
+              boxH: 40,
             });
           }
         }
@@ -1927,7 +1659,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (authorizedSignImage) {
             page.drawImage(authorizedSignImage, {
               x: 275,
-              y: 120,
+              y: 110,
               width: 90,
               height: 40,
             });
@@ -1947,11 +1679,11 @@ async function buildCertificatePdf(fields, logoFile) {
           });
           //signature image of second signatory
           if (secondSignImage) {
-            page.drawImage(secondSignImage, {
-              x: 465,
-              y: 120,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, secondSignImage, {
+              boxX: 465,
+              boxY: 110,
+              boxW: 90,
+              boxH: 40,
             });
           }
           if (includeThirdSign === "yes") {
@@ -2070,7 +1802,7 @@ async function buildCertificatePdf(fields, logoFile) {
           if (authorizedSignImage) {
             page.drawImage(authorizedSignImage, {
               x: 275,
-              y: 120,
+              y: 110,
               width: 90,
               height: 40,
             });
@@ -2090,11 +1822,11 @@ async function buildCertificatePdf(fields, logoFile) {
           });
           //signature image of second signatory
           if (secondSignImage) {
-            page.drawImage(secondSignImage, {
-              x: 465,
-              y: 120,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, secondSignImage, {
+              boxX: 465,
+              boxY: 110,
+              boxW: 90,
+              boxH: 40,
             });
           }
         }
@@ -2128,10 +1860,17 @@ async function buildCertificatePdf(fields, logoFile) {
 // around buildCertificatePdf().
 app.post(
   "/generateCertificate",
-  upload.single("organizationLogo"),
+  upload.any(),
   async (req, res) => {
     try {
-      const result = await buildCertificatePdf(req.body, req.file);
+      const allFiles = req.files || [];
+      const logoFiles = allFiles.filter(
+        (f) => f.fieldname === "organizationLogos" || f.fieldname === "organizationLogo",
+      );
+      const secondSignFile = allFiles.find(
+        (f) => f.fieldname === "otherSignatorySignature",
+      );
+      const result = await buildCertificatePdf(req.body, logoFiles, secondSignFile);
 
       res.json({
         success: true,
@@ -2157,7 +1896,7 @@ app.post(
 // shared across every certificate in the batch. Streams back a .zip.
 app.post(
   "/generateBulkCertificates",
-  upload.single("organizationLogo"),
+  upload.any(),
   async (req, res) => {
     let students;
 
@@ -2199,6 +1938,14 @@ app.post(
 
       archive.pipe(res);
 
+      const allFiles = req.files || [];
+      const logoFiles = allFiles.filter(
+        (f) => f.fieldname === "organizationLogos" || f.fieldname === "organizationLogo",
+      );
+      const secondSignFile = allFiles.find(
+        (f) => f.fieldname === "otherSignatorySignature",
+      );
+
       const failed = [];
 
       for (const student of students) {
@@ -2217,7 +1964,7 @@ app.post(
             recipientName,
           };
 
-          const result = await buildCertificatePdf(fields, req.file);
+          const result = await buildCertificatePdf(fields, logoFiles, secondSignFile);
 
           archive.append(Buffer.from(result.pdfBytes), {
             name: `${result.certificateId}.pdf`,
