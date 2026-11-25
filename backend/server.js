@@ -795,11 +795,11 @@ async function buildCertificatePdf(fields, logoFiles, secondSignFile = null) {
             size: 11,
           });
           if (authorizedSignImage) {
-            page.drawImage(authorizedSignImage, {
-              x: 275,
-              y: 90,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, authorizedSignImage, {
+              boxX: 275,
+              boxY: 90,
+              boxW: 95,
+              boxH: 42,
             });
           }
           // Name of second signatory
@@ -936,11 +936,11 @@ async function buildCertificatePdf(fields, logoFiles, secondSignFile = null) {
             size: 11,
           });
           if (authorizedSignImage) {
-            page.drawImage(authorizedSignImage, {
-              x: 275,
-              y: 90,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, authorizedSignImage, {
+              boxX: 275,
+              boxY: 90,
+              boxW: 95,
+              boxH: 42,
             });
           }
           // Name of second signatory
@@ -1072,11 +1072,11 @@ async function buildCertificatePdf(fields, logoFiles, secondSignFile = null) {
             size: 11,
           });
           if (authorizedSignImage) {
-            page.drawImage(authorizedSignImage, {
-              x: 275,
-              y: 110,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, authorizedSignImage, {
+              boxX: 275,
+              boxY: 110,
+              boxW: 95,
+              boxH: 42,
             });
           }
           // Name of second signatory
@@ -1236,11 +1236,11 @@ async function buildCertificatePdf(fields, logoFiles, secondSignFile = null) {
             size: 11,
           });
           if (authorizedSignImage) {
-            page.drawImage(authorizedSignImage, {
-              x: 275,
-              y: 110,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, authorizedSignImage, {
+              boxX: 275,
+              boxY: 110,
+              boxW: 95,
+              boxH: 42,
             });
           }
           // Name of second signatory
@@ -1376,11 +1376,11 @@ async function buildCertificatePdf(fields, logoFiles, secondSignFile = null) {
             size: 11,
           });
           if (authorizedSignImage) {
-            page.drawImage(authorizedSignImage, {
-              x: 275,
-              y: 110,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, authorizedSignImage, {
+              boxX: 275,
+              boxY: 110,
+              boxW: 95,
+              boxH: 42,
             });
           }
           // Name of second signatory
@@ -1536,11 +1536,11 @@ async function buildCertificatePdf(fields, logoFiles, secondSignFile = null) {
             size: 11,
           });
           if (authorizedSignImage) {
-            page.drawImage(authorizedSignImage, {
-              x: 275,
-              y: 110,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, authorizedSignImage, {
+              boxX: 275,
+              boxY: 110,
+              boxW: 95,
+              boxH: 42,
             });
           }
           // Name of second signatory
@@ -1657,11 +1657,11 @@ async function buildCertificatePdf(fields, logoFiles, secondSignFile = null) {
             size: 11,
           });
           if (authorizedSignImage) {
-            page.drawImage(authorizedSignImage, {
-              x: 275,
-              y: 110,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, authorizedSignImage, {
+              boxX: 275,
+              boxY: 110,
+              boxW: 95,
+              boxH: 42,
             });
           }
           // Name of second signatory
@@ -1800,11 +1800,11 @@ async function buildCertificatePdf(fields, logoFiles, secondSignFile = null) {
             size: 11,
           });
           if (authorizedSignImage) {
-            page.drawImage(authorizedSignImage, {
-              x: 275,
-              y: 110,
-              width: 90,
-              height: 40,
+            drawFittedSignature(page, authorizedSignImage, {
+              boxX: 275,
+              boxY: 110,
+              boxW: 95,
+              boxH: 42,
             });
           }
           // Name of second signatory
